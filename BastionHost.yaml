@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Simple Bastion Host
+
+Parameters: 
+  VPC:
+    Description: VPC
+    Type: AWS::EC2::VPC::Id
+  AZ:
+    Description: Availability Zone
+    Type: AWS::EC2::AvailabilityZone::Name
+  KeyPair:
+    Description: Key Pair Name
+    Type: AWS::EC2::KeyPair::KeyName
+
+Mappings:
+  # Amazon Linux
+  AWSRegion2AMI:
+    us-east-1: 
+      hvm: ami-0c6b1d09930fac512
+    ap-southeast-1:
+      hvm: ami-0b5a47f8865280111
+
+Resources:
+
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Bastion Security Group
+      GroupName: BastionSecurityGroup
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: project
+        Value: bastion
+
+  BastionHostInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+      - Ref: BastionSecurityGroup
+      UserData:
+        Fn::Base64: 
+          export MY_VARIABLE=HELLO
+          # yum update -y
+          # cd /tmp
+          # Setup SSM Agent.
+          # sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          # sudo start amazon-ssm-agent
+          ## TODO Logging, 
+          ## TODO CFN INIT
+
+      InstanceType: t3.micro
+      AvailabilityZone: !Ref AZ
+      ImageId:
+        Fn::FindInMap:
+        - AWSRegion2AMI
+        - Ref: AWS::Region
+        - hvm
+      Tags:
+        - Key: project
+          Value: bastion
+        - Key: Name
+          Value: bastion
+      IamInstanceProfile: !Ref BastionIamInstanceProfile
+    #Metadata: 
+    #  AWS::CloudFormation::Init: 
+    #    config: 
+    #      packages: 
+    #        :
+    #     files: 
+    #       :
+    #     commands: 
+    #        :
+    #      services: 
+    #        :
+ 
+  BastionIamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Roles: 
+        - !Ref BastionIamRole
+
+  BastionIamRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+
+Outputs:
+  InstanceId:
+    Description: InstanceId of the bastion EC2 instance
+    Value:
+      Ref: BastionHostInstance
+  PublicIP:
+    Description: Public IP address of the bastion EC2 instance
+    Value:
+      Fn::GetAtt:
+      - BastionHostInstance
+      - PublicIp
