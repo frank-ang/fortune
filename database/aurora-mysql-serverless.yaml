@@ -1,0 +1,59 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Aurora serverless cluster
+  To create, first get the dependent resource IDs (assumes a dependent stack containing VPC, named "playground-vpc")
+    VPC_ID=`aws cloudformation describe-stack-resources --stack-name playground-vpc --logical-resource-id VPC | jq -r '.StackResources[0].PhysicalResourceId'`
+    VPC_SECURITY_GROUP=TODO
+  To create, run
+    aws cloudformation deploy --capabilities CAPABILITY_IAM \
+      --template-file ./aurora-mysql-serverless.yaml  \
+      --parameter-overrides "DatabaseName=playground" \
+      --parameter-overrides "VpcId=$VPC_ID" \
+      --parameter-overrides "VpcSecurityGroupId=$VPC_SECURITY_GROUP" \
+      --stack-name playground-db \
+      --tags "project=playground"
+
+Parameters:
+  DatabaseName:
+    Type: String
+  EngineVersion_DELETEME:
+    Type: String
+    Default: '5.6'
+  MasterUsername:
+    Type: String
+    Default: root
+  MasterUserPassword:
+    Type: String
+    NoEcho: true
+    ### TODO set in AWS Secrets Manager
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  VpcSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+  Cluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora
+      EngineMode: serverless
+      # EngineVersion: !Ref EngineVersion
+      DatabaseName: !Ref DatabaseName
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
+      DBClusterIdentifier: !Ref AWS::StackName
+      BackupRetentionPeriod: 35
+      DeletionProtection: true
+      VpcSecurityGroupIds:
+        - !Ref VpcSecurityGroupId
+
+Outputs:
+  Host:
+    Value: !GetAtt Cluster.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}Host'
+  Name:
+    Value: !Ref DatabaseName
+    Export:
+      Name: !Sub '${AWS::StackName}Name'

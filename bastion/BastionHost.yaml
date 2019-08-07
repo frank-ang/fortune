@@ -1,13 +1,21 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Simple Bastion Host
+
+Description: Simple Bastion Host.
+  Deploys CloudWatch Agent. Setup SSM permissions.
+  To deploy, run
+  TODO
 
 Parameters: 
   VPC:
-    Description: VPC
+    Description: VPC ID.
     Type: AWS::EC2::VPC::Id
   AZ:
-    Description: Availability Zone
+    Description: Availability Zone placement of the bastion
     Type: AWS::EC2::AvailabilityZone::Name
+  AppSecurityGroupId:
+    Description: App Security group. The bastion should be permitted to connect into
+  DbSecurityGroupId:
+    Description: Db Security group the bastion should be permitted to connect into.
   KeyPair:
     Description: Key Pair Name
     Type: AWS::EC2::KeyPair::KeyName
@@ -25,7 +33,7 @@ Resources:
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Bastion Security Group
+      GroupDescription: !Sub 'Bastion Security Group for ${AWS::StackName}'
       GroupName: BastionSecurityGroup
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -33,9 +41,15 @@ Resources:
         FromPort: 22
         ToPort: 22
         CidrIp: 0.0.0.0/0
-      Tags:
-      - Key: project
-        Value: bastion
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: -1
+          ToPort: -1
+          IpProtocol: '-1'
+        - DestinationSecurityGroupId: !Ref DbSecurityGroupId
+          IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
 
   BastionHostInstance:
     Type: AWS::EC2::Instance

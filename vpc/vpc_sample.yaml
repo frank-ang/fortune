@@ -2,7 +2,7 @@ Description:
   This template deploys a VPC, with
     - a pair of public and private subnets spread across two Availability Zones. 
     - 1 Internet Gateway, with a default route on the public subnets. 
-    - 1 shared NAT Gateways in AZ1, and default routes for them in the private subnets.
+    - 1 shared NAT Gateway in AZ1, and default routes to it from the private subnets.
   Based mostly on doc sample https://docs.aws.amazon.com/codebuild/latest/userguide/cloudformation-vpc-template.html
   To create, run
     aws cloudformation deploy --capabilities CAPABILITY_IAM \
@@ -22,22 +22,22 @@ Parameters:
     Default: 10.10.0.0/16
 
   PublicSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the public subnet of AZ 1
     Type: String
     Default: 10.10.10.0/24
 
   PublicSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the public subnet of AZ 2
     Type: String
     Default: 10.10.11.0/24
 
   PrivateSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the private subnet of AZ 1
     Type: String
     Default: 10.10.20.0/24
 
   PrivateSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the private subnet of AZ 2
     Type: String
     Default: 10.10.21.0/24
 
@@ -64,6 +64,8 @@ Resources:
     Properties:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
+
+  # Public and Private Subnets
 
   PublicSubnet1:
     Type: AWS::EC2::Subnet
@@ -121,6 +123,8 @@ Resources:
       AllocationId: !GetAtt NatGateway1EIP.AllocationId
       SubnetId: !Ref PublicSubnet1
 
+  # Route Tables
+
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -149,7 +153,6 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
 
-
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -171,33 +174,151 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable1
       SubnetId: !Ref PrivateSubnet1
 
-  PrivateRouteTable2:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
-
-  DefaultPrivateRoute2:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable2
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway1
-
   PrivateSubnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable2
+      RouteTableId: !Ref PrivateRouteTable1
       SubnetId: !Ref PrivateSubnet2
 
-  NoIngressSecurityGroup:
+  # Security Groups
+  # We avoid circular references by separating (not nesting) rules that refer to SourceSecurityGroupId
+
+  BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: "no-ingress-sg"
-      GroupDescription: "Security group with no ingress rule"
+      GroupName: !Sub '${AWS::StackName}-bastion-security'
+      GroupDescription: "Bastion Security group"
       VpcId: !Ref VPC
+      SecurityGroupIngress:
+         - IpProtocol: tcp
+           FromPort: 22
+           ToPort: 22
+           CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+
+  BastionSecurityGroupIngressFromSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupName: BastionSecurityGroup
+      IpProtocol: tcp
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+  DmzSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${AWS::StackName}-dmz-security'
+      GroupDescription: "DMZ Security group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+         - IpProtocol: tcp
+           FromPort: 80
+           ToPort: 80
+           CidrIp: '0.0.0.0/0'
+         - IpProtocol: tcp
+           FromPort: 443
+           ToPort: 443
+           CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+
+  DmzSecurityGroupIngressFromBastion:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupName: DmzSecurityGroup
+      IpProtocol: tcp
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${AWS::StackName}-app-security'
+      GroupDescription: "App Security group"
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+
+  AppSecurityGroupIngressFromDmz80:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupName: DmzSecurityGroup
+      IpProtocol: tcp
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+  AppSecurityGroupIngressFromDmz80:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref DmzSecurityGroup
+
+  AppSecurityGroupIngressFromDmz443:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref DmzSecurityGroup
+
+  AppSecurityGroupIngressFromBastion:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+  AppSecurityGroupIngressFromSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${AWS::StackName}-db-security'
+      GroupDescription: "Database Security group"
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+
+  DbSecurityGroupIngressFromBastion:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+  DbSecurityGroupIngressFromApp:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  DbSecurityGroupIngressFromSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref DbSecurityGroup
 
 Outputs:
   VPC:
@@ -228,6 +349,18 @@ Outputs:
     Description: A reference to the private subnet in the 2nd Availability Zone
     Value: !Ref PrivateSubnet2
 
-  NoIngressSecurityGroup:
-    Description: Security group with no ingress rule
-    Value: !Ref NoIngressSecurityGroup
+  BastionSecurityGroup:
+    Description: Bastion Security group 
+    Value: !Ref BastionSecurityGroup
+
+  DmzSecurityGroup:
+    Description: DMZ Security group 
+    Value: !Ref DmzSecurityGroup
+
+  AppSecurityGroup:
+    Description: App Security group 
+    Value: !Ref AppSecurityGroup
+
+  DbSecurityGroup:
+    Description: Database Security group 
+    Value: !Ref DbSecurityGroup
