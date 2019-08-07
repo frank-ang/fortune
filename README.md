@@ -6,5 +6,9 @@ Cloudformation template for a standalone bastion EC2 host, using Amazon Linux en
 
 To create/update the stack:
 ```
-aws cloudformation deploy --capabilities CAPABILITY_IAM --template-file ./BastionHost.yaml  --parameter-overrides "VPC=REPLACE_ME" "AZ=us-east-1a" "KeyPair=id_rsa.macbook.2018" --stack-name REPLACE_ME
+aws cloudformation deploy --capabilities CAPABILITY_IAM --template-file ./BastionHost.yaml  --parameter-overrides "VPC=REPLACE_ME" "AZ=us-east-1a" "KeyPair=REPLACE_ME" --stack-name REPLACE_ME
 ```
+
+## Quotes.
+Source quotes data ownloaded from:
+https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv
