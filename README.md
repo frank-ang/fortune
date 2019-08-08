@@ -6,7 +6,15 @@ The real purpose is to illustrate and communicate DevOps implementations of Infr
 
 Setup basic scaffolding first. Work in progress, not too interesting for now.
 
+
+
 ## Infrastructure
+
+### Prereqs
+
+* Install ```jq```, ```aws cli```, ```make```.
+* Setup AWS environment console variables.
+
 ### VPC
 
 Deploy Cloudformation stack to create a 2-AZ VPC, public subnets, private subnets, NAT gateway, and security groups.
@@ -31,8 +39,7 @@ Create Aurora serverless into the VPC
 
 ```
 cd database
-TODO... create database into VPC
-TODO... load sample data.
+make validate && make deploy
 ```
 
 Sample quotes from: https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv

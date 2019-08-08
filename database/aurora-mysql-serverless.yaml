@@ -2,55 +2,78 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Description: Aurora serverless cluster
-  To create, first get the dependent resource IDs (assumes a dependent stack containing VPC, named "playground-vpc")
-    VPC_ID=`aws cloudformation describe-stack-resources --stack-name playground-vpc --logical-resource-id VPC | jq -r '.StackResources[0].PhysicalResourceId'`
-    VPC_SECURITY_GROUP=TODO
-  To create, run
-    aws cloudformation deploy --capabilities CAPABILITY_IAM \
-      --template-file ./aurora-mysql-serverless.yaml  \
-      --parameter-overrides "DatabaseName=playground" \
-      --parameter-overrides "VpcId=$VPC_ID" \
-      --parameter-overrides "VpcSecurityGroupId=$VPC_SECURITY_GROUP" \
-      --stack-name playground-db \
-      --tags "project=playground"
 
 Parameters:
   DatabaseName:
     Type: String
-  EngineVersion_DELETEME:
-    Type: String
-    Default: '5.6'
-  MasterUsername:
-    Type: String
-    Default: root
-  MasterUserPassword:
-    Type: String
-    NoEcho: true
-    ### TODO set in AWS Secrets Manager
   VpcId:
     Type: AWS::EC2::VPC::Id
   VpcSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
+  AZ1:
+    Type: String
+  AZ2:
+    Type: String
+  SUBNET1:
+    Type: String
+  SUBNET2:
+    Type: String
+  EngineVersion:
+    Type: String
+    Default: '5.6'
 
 Resources:
-  Cluster:
+
+  DatabaseCluster:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora
       EngineMode: serverless
-      # EngineVersion: !Ref EngineVersion
+      EngineVersion: !Ref EngineVersion
       DatabaseName: !Ref DatabaseName
-      MasterUsername: !Ref MasterUsername
-      MasterUserPassword: !Ref MasterUserPassword
       DBClusterIdentifier: !Ref AWS::StackName
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref DatabaseSecret, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref DatabaseSecret, ':SecretString:password}}' ]]
       BackupRetentionPeriod: 35
-      DeletionProtection: true
+      DeletionProtection: false
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
       VpcSecurityGroupIds:
         - !Ref VpcSecurityGroupId
+      AvailabilityZones:
+        - !Ref AZ1
+        - !Ref AZ2
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: playground aurora RDS subnet group
+      SubnetIds:
+        - !Ref SUBNET1
+        - !Ref SUBNET2
+
+  # Secret resource with a randomly generated password in its SecretString JSON.
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'Playground RDS instance secret'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "root"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+
+  #This is a SecretTargetAttachment resource which updates the referenced Secret resource with properties about
+  #the referenced RDS instance
+  SecretRDSInstanceAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref DatabaseSecret
+      TargetId: !Ref DatabaseCluster
+      TargetType: AWS::RDS::DBCluster
 
 Outputs:
   Host:
-    Value: !GetAtt Cluster.Endpoint.Address
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
     Export:
       Name: !Sub '${AWS::StackName}Host'
   Name:
