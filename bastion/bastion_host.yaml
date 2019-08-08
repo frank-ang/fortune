@@ -1,21 +1,27 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
 Description: Simple Bastion Host.
-  Deploys CloudWatch Agent. Setup SSM permissions.
-  To deploy, run
-  TODO
+  Setup CloudWatch Agent. 
+  Setup SSM permissions.
 
 Parameters: 
+
   VPC:
-    Description: VPC ID.
     Type: AWS::EC2::VPC::Id
+    Description: VPC ID.
+
+  SubnetId:
+    Type: String
+    Description: Subnet ID placement
+
   AZ:
-    Description: Availability Zone placement of the bastion
     Type: AWS::EC2::AvailabilityZone::Name
-  AppSecurityGroupId:
-    Description: App Security group. The bastion should be permitted to connect into
-  DbSecurityGroupId:
-    Description: Db Security group the bastion should be permitted to connect into.
+    Description: Availability Zone placement
+
+  BastionSecurityGroup:
+    Description: Bastion Security group ID
+    Type: String
+
   KeyPair:
     Description: Key Pair Name
     Type: AWS::EC2::KeyPair::KeyName
@@ -29,27 +35,6 @@ Mappings:
       hvm: ami-0b5a47f8865280111
 
 Resources:
-
-  BastionSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Sub 'Bastion Security Group for ${AWS::StackName}'
-      GroupName: BastionSecurityGroup
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-        CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - CidrIp: 0.0.0.0/0
-          FromPort: -1
-          ToPort: -1
-          IpProtocol: '-1'
-        - DestinationSecurityGroupId: !Ref DbSecurityGroupId
-          IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
 
   BastionHostInstance:
     Type: AWS::EC2::Instance
@@ -131,18 +116,15 @@ Resources:
             02start_cfn_hup:
               command: !Sub |
                 systemctl start cfn-hup.service
-
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: "PT15M"
     Properties:
-      KeyName: !Ref KeyPair
+      SubnetId: !Ref SubnetId
       SecurityGroupIds:
-      - Ref: BastionSecurityGroup
-      UserData:
-        # This script below is to install AmazonCloudWatchAgent, restart AmazonCloudWatchAgent and tell the result to cloudformation.
-        Fn::Base64: !Sub |
-           #!/bin/bash
-           rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
-           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource BastionHostInstance --region ${AWS::Region} --configsets default
-           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource BastionHostInstance --region ${AWS::Region}
+      - !Ref BastionSecurityGroup
+      KeyName: !Ref KeyPair
       InstanceType: t3.micro
       AvailabilityZone: !Ref AZ
       ImageId:
@@ -156,11 +138,15 @@ Resources:
         - Key: Name
           Value: bastion
       IamInstanceProfile: !Ref BastionIamInstanceProfile
-    CreationPolicy:
-      ResourceSignal:
-        Count: 1
-        Timeout: "PT15M"
+      UserData:
+        # This script installs AmazonCloudWatchAgent, restart AmazonCloudWatchAgent and signals the result back to CloudFormation.
+        Fn::Base64: !Sub |
+           #!/bin/bash
+           rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource BastionHostInstance --region ${AWS::Region} --configsets default
+           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource BastionHostInstance --region ${AWS::Region}
  
+
   BastionIamInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties: 
