@@ -1,14 +1,33 @@
-# Sample deployments. 
+# Sample. 
+
+Not sure what to make of this project yet. Setup basic scaffolding first.
+
+## VPC
+
+Deploy Cloudformation stack to create a 2-AZ VPC, public subnets, private subnets, NAT gateway, and security groups.
+
+```
+cd vpc
+make validate && make deploy
+```
 
 ## Bastion Host
 
-Cloudformation template for a standalone bastion EC2 host, using Amazon Linux enabled with SSM (default) and CloudWatch agent.
+Create bastion ALinux EC2 host into VPC with SSM and CloudWatch agent.
 
-To create/update the stack:
 ```
-aws cloudformation deploy --capabilities CAPABILITY_IAM --template-file ./BastionHost.yaml  --parameter-overrides "VPC=REPLACE_ME" "AZ=us-east-1a" "KeyPair=REPLACE_ME" --stack-name REPLACE_ME
+cd bastion
+make validate && make deploy
 ```
 
-## Quotes.
-Source quotes data ownloaded from:
-https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv
+## Database 
+
+Create Aurora serverless into the VPC
+
+```
+cd database
+TODO... create database into VPC
+TODO... load sample data.
+```
+
+Sample quotes from: https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv
