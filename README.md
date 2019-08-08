@@ -1,10 +1,38 @@
-# Sample deployments. 
+# Yet Another Sample App. 
 
-## Bastion Host
+Yet another application. Sample API, 
 
-Cloudformation template for a standalone bastion EC2 host, using Amazon Linux enabled with SSM (default) and CloudWatch agent.
+The real purpose is to illustrate and communicate DevOps implementations of Infrastructure as Code, CI/CD.
 
-To create/update the stack:
+Setup basic scaffolding first. Work in progress, not too interesting for now.
+
+## Infrastructure
+### VPC
+
+Deploy Cloudformation stack to create a 2-AZ VPC, public subnets, private subnets, NAT gateway, and security groups.
+
 ```
-aws cloudformation deploy --capabilities CAPABILITY_IAM --template-file ./BastionHost.yaml  --parameter-overrides "VPC=REPLACE_ME" "AZ=us-east-1a" "KeyPair=id_rsa.macbook.2018" --stack-name REPLACE_ME
+cd vpc
+make validate && make deploy
 ```
+
+### Bastion Host
+
+Create bastion ALinux EC2 host into VPC with SSM and CloudWatch agent.
+
+```
+cd bastion
+make validate && make deploy
+```
+
+### Database 
+
+Create Aurora serverless into the VPC
+
+```
+cd database
+TODO... create database into VPC
+TODO... load sample data.
+```
+
+Sample quotes from: https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv
