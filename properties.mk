@@ -1,0 +1,5 @@
+PROJECT_TAG=playground
+VPC_STACK_NAME=playground-vpc
+BASTION_STACK_NAME=playground-bastion
+DB_STACK_NAME=playground-database
+KEY_PAIR=macbook2018

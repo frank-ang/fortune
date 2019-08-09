@@ -1,4 +1,3 @@
----
 AWSTemplateFormatVersion: 2010-09-09
 
 Description: Aurora serverless cluster
@@ -60,7 +59,7 @@ Resources:
         SecretStringTemplate: '{"username": "root"}'
         GenerateStringKey: 'password'
         PasswordLength: 16
-        ExcludeCharacters: '"@/\'
+        ExcludePunctuation: true
 
   #This is a SecretTargetAttachment resource which updates the referenced Secret resource with properties about
   #the referenced RDS instance
@@ -80,3 +79,7 @@ Outputs:
     Value: !Ref DatabaseName
     Export:
       Name: !Sub '${AWS::StackName}Name'
+  Secret:
+    Value: !Ref DatabaseSecret
+    Export:
+      Name: !Sub '${AWS::StackName}Secret'
