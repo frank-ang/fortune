@@ -63,4 +63,3 @@ load:
 	scp ./quotes.ddl.sql ec2-user@${BASTION_IP}:/tmp
 	scp ./quotes.csv ec2-user@${BASTION_IP}:/tmp
 	ssh ec2-user@${BASTION_IP} "mysql -u root -p${DB_PASSWORD} -h ${DB_HOST} < /tmp/quotes.ddl.sql"
-
