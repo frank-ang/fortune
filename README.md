@@ -70,7 +70,18 @@ Accept any SSH prompts if its the first time connecting to the bastion host.
 
 ### Application
 
-TODO!
+Deploy Fargate cluster and sample app.
+
+```
+cd fargate
+make verify
+make init
+make deploy
+```
+
+>Get the public load balancer DNS name. Open in a browser to view a sample web page.  
+
+....TODO!
 
 ## TODOs
 

@@ -2,9 +2,6 @@
 # Makefile for Fargate container cluster
 -include ../properties.mk ./properties.mk.gitignore
 
-nothing:
-	@echo skipping
-
 validate: 
 	aws cloudformation validate-template --template-body file://fargate.yaml
 
