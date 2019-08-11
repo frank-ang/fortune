@@ -7,29 +7,26 @@ import (
 	"net/http"
 	"github.com/gorilla/mux"
 	"quotes/handler"
-	//"github.com/aws/aws-sdk-go/aws/session"
-	//// "github.com/aws/aws-sdk-go/aws/credentials"
-	//// "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	////  "github.com/aws/aws-sdk-go/service/s3"
 )
 
 func main() {
 	port := os.Getenv("PORT");
 	if port == "" {
-		port = "8080"
+		port = "80"
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", handler.GetQuote)
-	r.HandleFunc("/debug", debug)
-
+	r.HandleFunc("/quote", handler.GetQuote)
+	r.HandleFunc("/", HealthCheck)
+	r.HandleFunc("/health", HealthCheck)
 	http.Handle("/", r)
 	fmt.Println("Starting up on " + port)
 	log.Fatal(http.ListenAndServe(":" + port, nil))
+	fmt.Println("Exiting.")
 }
 
-func debug(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintln(w, "Debug handler!")
+func HealthCheck(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintln(w, "Hello, World!")
 	//sess := session.Must(session.NewSession())
 	//fmt.Fprintf(w, "AWS session: %s", sess)
 }

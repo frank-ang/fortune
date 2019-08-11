@@ -1,5 +1,5 @@
 ############################
-# STEP 1 build executable binary
+# STEP 1 build dependencies
 ############################
 FROM golang:alpine AS builder
 # Install git.
@@ -10,25 +10,33 @@ RUN apk update && apk add --no-cache git
 WORKDIR /app
 
 # Download all dependencies.
+# populate the module cache based on the go.{mod,sum} files. 
 COPY go.mod go.sum ./
-COPY handler/* ./handler/
-COPY main.go ./
+# Because of how the layer caching system works in Docker, the go mod download 
+# command will _ only_ be re-run when the go.mod or go.sum file change 
 RUN go mod download
 
-# Build the Go app for target architecture
+############################
+# STEP 2 build the service
+############################
+FROM builder AS service_builder
+# Here we copy the rest of the source code
+COPY handler/* ./handler/
+COPY main.go ./
+# Now, Build the Go app for target architecture
 ENV GO111MODULE=on
 RUN CGO_ENABLED=0 GOOS=linux go build -o quotes 
 
 ############################
-# STEP 2 build a small image
+# STEP 3 copy executable into a small image
 ############################
 FROM scratch
 
 # Copy our static executable.
-COPY --from=builder /app/quotes /app/quotes
+COPY --from=service_builder /app/quotes /app/quotes
 
 # Binary to run
 ENTRYPOINT ["/app/quotes"]
 
-# Expose port 8080 to the outside world
-EXPOSE 8080
+# Expose port 80 to the outside world
+EXPOSE 80
