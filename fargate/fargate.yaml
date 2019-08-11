@@ -80,6 +80,7 @@ Resources:
       ServiceName: !Ref 'ServiceName'
       Cluster: !Ref ECSCluster
       LaunchType: FARGATE
+      PlatformVersion: "1.3.0"
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 50
@@ -128,29 +129,6 @@ Resources:
     Properties:
       LogGroupName: !Ref AWS::StackName
       RetentionInDays: 30
-
-  # Container Registry. Private repo of Docker images. Initially empty.
-  ContainerRegistry:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Sub "${AWS::StackName}"
-      RepositoryPolicyText:
-        Version: "2012-10-17"
-        Statement:
-          -
-            Sid: AllowPushPull
-            Effect: Allow
-            Principal: 
-              AWS:
-                - !Sub "${AWS::AccountId}"
-            Action:
-              - "ecr:GetDownloadUrlForLayer"
-              - "ecr:BatchGetImage"
-              - "ecr:BatchCheckLayerAvailability"
-              - "ecr:PutImage"
-              - "ecr:InitiateLayerUpload"
-              - "ecr:UploadLayerPart"
-              - "ecr:CompleteLayerUpload"
 
   # Application Tasks role to make API requests to authorized AWS services. 
   AppRole:
@@ -261,9 +239,8 @@ Outputs:
     Value: !GetAtt PublicLoadBalancer.DNSName
   ECSClusterName:
     Value: !Ref ECSCluster
-  ServiceArn:
-    Value: !Ref Service
+  ServiceName:
+    Value: !GetAtt Service.Name
   TaskDefinitionArn:
     Value: !Ref TaskDefinition
-  ContainerRegistry:
-    Value: !Ref ContainerRegistry
+

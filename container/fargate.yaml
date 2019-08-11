@@ -232,7 +232,7 @@ Outputs:
     Value: !GetAtt PublicLoadBalancer.DNSName
   ECSClusterName:
     Value: !Ref ECSCluster
-  ServiceArn:
-    Value: !Ref Service
+  ServiceName:
+    Value: !GetAtt Service.Name
   TaskDefinitionArn:
     Value: !Ref TaskDefinition

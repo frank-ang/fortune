@@ -68,7 +68,7 @@ Accept any SSH prompts if its the first time connecting to the bastion host.
 >
 >> Credits: Sample quotes sourced from [https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv]
 
-### Application
+### Container Cluster
 
 Deploy Fargate cluster and sample app.
 
@@ -79,17 +79,45 @@ make init
 make deploy
 ```
 
->Get the public load balancer DNS name. Open in a browser to view a sample web page.  
+What this creates: 
+* ECS cluster, 
+* Load Balancer, 
+* Fargate service that runs a sample Nginx image
 
-....TODO!
+>Verify the sample Nginx home page:
+>Get the public load balancer DNS endpoint (see stack output). 
+>Open in a browser to view the Nginx sample web page.  
+
+### Quotes Application Image.
+
+Build the application.
+```
+cd quotes
+make clean
+make build
+make run
+make stop
+```
+
+### Quotes Application Pipeline.
+
+```
+cd pipeline
+make verify
+make deploy
+```
+
+Creates:
+* standalone ECR repository
+* CodePipeline stack
 
 ## TODOs
 
-#### Secrets Manager credentials rotation
+* Secrets Manager credentials requires Lambda function for cred rotation.
 
-#### Systems Manager section (please ignore)
+#### Systems Manager section below (please ignore)
 
-TODO section for EC2 SSM instead of SSH. Please ignore.
+TODO section to potentially use EC2 SSM instead of SSH. E.g. for populating sample data. Please ignore, for now.
 
 ```
 # Run a command via SSM
