@@ -70,16 +70,20 @@ Resources:
       TargetId: !Ref DatabaseCluster
       TargetType: AWS::RDS::DBCluster
 
+  DatabaseEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "${AWS::StackName}-endpoint"
+      Description: Endpoint of RDS Aurora MySQL
+      Type: String
+      Value: !GetAtt DatabaseCluster.Endpoint.Address
+
 Outputs:
   Host:
     Value: !GetAtt DatabaseCluster.Endpoint.Address
-    Export:
-      Name: !Sub '${AWS::StackName}Host'
   Name:
     Value: !Ref DatabaseName
-    Export:
-      Name: !Sub '${AWS::StackName}Name'
   Secret:
     Value: !Ref DatabaseSecret
-    Export:
-      Name: !Sub '${AWS::StackName}Secret'
+  EndpointParameter:
+    Value: !Ref DatabaseEndpointParameter

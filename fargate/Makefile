@@ -1,6 +1,7 @@
 #!make
 # Makefile for Fargate container cluster
 -include ../properties.mk ./properties.mk.gitignore
+SERVICE_NAME=quotes
 
 validate: 
 	aws cloudformation validate-template --template-body file://fargate.yaml
@@ -9,6 +10,7 @@ deploy: validate
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
       --template-file ./fargate.yaml \
       --parameter-overrides \
+        "ServiceName=$(SERVICE_NAME)"\
         "VpcId=$(VPC_ID)" \
         "PublicSubnet1=$(PUBLIC_SUBNET1)" "PublicSubnet2=$(PUBLIC_SUBNET2)" \
         "PrivateSubnet1=$(PRIVATE_SUBNET1)" "PrivateSubnet2=$(PRIVATE_SUBNET2)" \

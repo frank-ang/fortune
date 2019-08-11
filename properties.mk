@@ -1,3 +1,4 @@
+# shared Makefile parameters and functions for include
 PROJECT_TAG=playground
 VPC_STACK_NAME=playground-vpc
 BASTION_STACK_NAME=playground-bastion
@@ -23,24 +24,24 @@ init:
 	# Set updated parameters into properties file
 	@echo "# Dynamically generated properties file." > $(PROPERTIES_FILE)
 	@echo "VPC_ID = "`aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id VPC \
+				--stack-name ${VPC_STACK_NAME} --logical-resource-id VPC \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
 	@echo "PUBLIC_SUBNET1 = "`aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id PublicSubnet1 \
+				--stack-name ${VPC_STACK_NAME} --logical-resource-id PublicSubnet1 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
 	@echo "PUBLIC_SUBNET2 = "`aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id PublicSubnet2 \
+				--stack-name ${VPC_STACK_NAME} --logical-resource-id PublicSubnet2 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
 	@echo "PRIVATE_SUBNET1 = "`aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id PrivateSubnet1 \
+				--stack-name ${VPC_STACK_NAME} --logical-resource-id PrivateSubnet1 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
 	@echo "PRIVATE_SUBNET2 = "`aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id PrivateSubnet2 \
+				--stack-name ${VPC_STACK_NAME} --logical-resource-id PrivateSubnet2 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
-	@echo "AZ1 =" `aws ec2 describe-subnets --subnet-ids ${SUBNET1} \
+	@echo "AZ1 =" `aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNET1} \
 				| jq -r '.Subnets[0].AvailabilityZone'` >> $(PROPERTIES_FILE)
-	@echo "AZ2 =" `aws ec2 describe-subnets --subnet-ids ${SUBNET2} \
-				| jq -r '.Subnets[0].AvailabilityZone'` >> $(PROPERTIES_FILE)
+	@echo "AZ2 =" `aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNET2} \
+				| jq -r '.Subnets[0].AvailabilityZone'` >> ${PROPERTIES_FILE}
 	@echo "DMZ_SECURITY_GROUP =" `aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DmzSecurityGroup") | .OutputValue'` >> $(PROPERTIES_FILE)
 	@echo "APP_SECURITY_GROUP =" `aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \

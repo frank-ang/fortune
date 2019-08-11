@@ -16,7 +16,7 @@ deploy: validate init dump
 
 load:
 	# Create database tables and load sample CSV data
-	$(eval DB_SECRET_ID = $(shell aws cloudformation describe-stacks --stack-name $(DB_STACK_NAME) \
+	$(eval DB_SECRET_ID = $(shell aws cloudformation describe-stacks --stack-name ${DB_STACK_NAME} \
 				| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "Secret") | .OutputValue'))
 	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${DB_SECRET_ID} \
 					| jq -r '.SecretString' | jq -r '.password'))
@@ -26,3 +26,7 @@ load:
 	scp ./quotes.ddl.sql ec2-user@${BASTION_IP}:/tmp
 	scp ./quotes.csv ec2-user@${BASTION_IP}:/tmp
 	ssh ec2-user@${BASTION_IP} "mysql -u root -p${DB_PASSWORD} -h ${DB_HOST} < /tmp/quotes.ddl.sql"
+
+query:
+	# Test querying the DB;
+	
