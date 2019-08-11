@@ -127,7 +127,7 @@ Resources:
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Ref AWS::StackName
+      ## LogGroupName: !Ref AWS::StackName
       RetentionInDays: 30
 
   # Application Tasks role to make API requests to authorized AWS services. 

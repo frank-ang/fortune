@@ -4,16 +4,16 @@ PIPELINE_STACK_NAME=playground-pipeline
 REPOSITORY_NAME=playground-repo
 GitHubRepo=DeployPlayground
 GitHubBranch=dev-cicd
-GitHubUser=frankang
-Cluster=`aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
-			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "ECSClusterName") | .OutputValue'`
-ServiceName=`aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
-			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "ServiceName") | .OutputValue'`
+GitHubUser=frank-ang
+Cluster := $(shell aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
+			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "ECSClusterName") | .OutputValue')
+ServiceName:= $(shell aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
+			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "ServiceName") | .OutputValue')
+
+.DEFAULT_GOAL := help
 
 help:
-	@#echo make validate deploy
-	@echo Cluster=${Cluster}
-	@echo ServiceName=${ServiceName}
+	@echo make validate deploy
 
 validate:
 	aws cloudformation validate-template --template-body file://pipeline.yaml
@@ -30,6 +30,6 @@ deploy: validate deploy-ecr
       --parameter-overrides \
 		"GitHubRepo=${GitHubRepo}" "GitHubBranch=${GitHubBranch}" \
 		"GitHubUser=${GitHubUser}" "GitHubToken=${GitHubToken}" \
-		"Cluster=${Cluster}" "ServiceName=${ServiceName}" "Repository=${REPOSITORY_NAME}"\
+		"Cluster=$(Cluster)" "ServiceName=$(ServiceName)" "Repository=${REPOSITORY_NAME}"\
       --stack-name ${PIPELINE_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
