@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Aurora serverless cluster
+
+Parameters:
+  DatabaseName:
+    Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  VpcSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  AZ1:
+    Type: String
+  AZ2:
+    Type: String
+  SUBNET1:
+    Type: String
+  SUBNET2:
+    Type: String
+  EngineVersion:
+    Type: String
+    Default: '5.6'
+  EndpointParameterName:
+    Type: String
+  SecretName:
+    Type: String
+
+Resources:
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora
+      EngineMode: serverless
+      EngineVersion: !Ref EngineVersion
+      DatabaseName: !Ref DatabaseName
+      DBClusterIdentifier: !Ref AWS::StackName
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref DatabaseSecret, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref DatabaseSecret, ':SecretString:password}}' ]]
+      BackupRetentionPeriod: 35
+      DeletionProtection: false
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref VpcSecurityGroupId
+      AvailabilityZones:
+        - !Ref AZ1
+        - !Ref AZ2
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: aurora RDS subnet group
+      SubnetIds:
+        - !Ref SUBNET1
+        - !Ref SUBNET2
+
+  # Secret resource with a randomly generated password in its SecretString JSON.
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Ref SecretName
+      Description: !Sub '${DatabaseName} RDS instance secret'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "root"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludePunctuation: true
+
+  #This is a SecretTargetAttachment resource which updates the referenced Secret resource with properties about
+  #the referenced RDS instance
+  SecretRDSInstanceAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref DatabaseSecret
+      TargetId: !Ref DatabaseCluster
+      TargetType: AWS::RDS::DBCluster
+
+  DatabaseEndpointParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Ref EndpointParameterName
+      Description: Endpoint of RDS Aurora MySQL
+      Type: String
+      Value: !GetAtt DatabaseCluster.Endpoint.Address
+
+Outputs:
+  Name:
+    Value: !Ref DatabaseName
+  Host:
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
+  EndpointParameter:
+    Value: !Ref DatabaseEndpointParameter
+  Secret:
+    Value: !Ref DatabaseSecret
