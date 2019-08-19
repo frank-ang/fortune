@@ -1,7 +1,7 @@
 #!make
 # Deploy the Bastion Host
+-include ../config/properties.mk
 TEMPLATE_FILE := bastion_host.yaml
--include ../properties.mk
 VPC_ID        := $(shell aws cloudformation describe-stack-resources \
 				--stack-name $(VPC_STACK_NAME) --logical-resource-id VPC \
 				| jq -r '.StackResources[0].PhysicalResourceId')
@@ -14,11 +14,10 @@ BASTION_SECURITY_GROUP := $(shell aws cloudformation describe-stack-resources \
 		--stack-name $(VPC_STACK_NAME) --logical-resource-id BastionSecurityGroup \
 		| jq -r '.StackResources[0].PhysicalResourceId')
 
-dump:
-	@echo VPC_ID: ${VPC_ID}
-	@echo SUBNET_ID: ${SUBNET_ID}
-	@echo AZ: ${AZ}
-	@echo BASTION_SECURITY_GROUP: ${BASTION_SECURITY_GROUP}
+.DEFAULT_GOAL := help
+help:
+	@echo Deploys the bastion host.
+	@echo make validate deploy 
 
 validate: 
 	aws cloudformation validate-template --template-body file://${TEMPLATE_FILE}

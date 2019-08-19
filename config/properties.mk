@@ -2,16 +2,20 @@
 PROJECT_TAG=playground
 VPC_STACK_NAME=playground-vpc
 BASTION_STACK_NAME=playground-bastion
-DB_STACK_NAME=playground-database
+DB_STACK_NAME=playground-database-beta
 CONTAINER_STACK_NAME=playground-container
 KEY_PAIR=macbook2018
-PROPERTIES_FILE=properties.mk.gitignore
+PROPERTIES_FILE=../config/properties.mk.gitignore
+BetaEndpointParameterName="/beta/database/${PROJECT_TAG}/endpoint"
+BetaSecretName="/beta/database/${PROJECT_TAG}/secret"
 
 dump:
 	@echo Parameters:
 	@echo VPC_ID=$(VPC_ID)
-	@echo SUBNET1=$(SUBNET1)
-	@echo SUBNET2=$(SUBNET2)
+	@echo PUBLIC_SUBNET1=$(PUBLIC_SUBNET1)
+	@echo PUBLIC_SUBNET2=$(PUBLIC_SUBNET2)
+	@echo PRIVATE_SUBNET1=$(PRIVATE_SUBNET1)
+	@echo PRIVATE_SUBNET2=$(PRIVATE_SUBNET2)
 	@echo AZ1=$(AZ1)
 	@echo AZ2=$(AZ2)
 	@echo DMZ_SECURITY_GROUP=$(DB_SECURITY_GROUP)
@@ -52,4 +56,10 @@ init:
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "PublicIP") | .OutputValue'` >> $(PROPERTIES_FILE)
 	@echo "BASTION_INSTANCE =" `aws cloudformation describe-stacks --stack-name $(BASTION_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "InstanceId") | .OutputValue'` >> $(PROPERTIES_FILE)
+	@echo "DB_HOST =" `aws ssm get-parameter --name ${BetaEndpointParameterName} \
+		| jq -r '.Parameter.Value'` >> $(PROPERTIES_FILE)
 	@cat $(PROPERTIES_FILE)
+
+config-db-secret:
+	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${BetaSecretName} \
+					| jq -r '.SecretString' | jq -r '.password'))

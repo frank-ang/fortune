@@ -20,6 +20,10 @@ Parameters:
   EngineVersion:
     Type: String
     Default: '5.6'
+  EndpointParameterName:
+    Type: String
+  SecretName:
+    Type: String
 
 Resources:
 
@@ -45,7 +49,7 @@ Resources:
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: playground aurora RDS subnet group
+      DBSubnetGroupDescription: aurora RDS subnet group
       SubnetIds:
         - !Ref SUBNET1
         - !Ref SUBNET2
@@ -54,7 +58,8 @@ Resources:
   DatabaseSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: 'Playground RDS instance secret'
+      Name: !Ref SecretName
+      Description: !Sub '${DatabaseName} RDS instance secret'
       GenerateSecretString:
         SecretStringTemplate: '{"username": "root"}'
         GenerateStringKey: 'password'
@@ -73,17 +78,17 @@ Resources:
   DatabaseEndpointParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "${AWS::StackName}-endpoint"
+      Name: !Ref EndpointParameterName
       Description: Endpoint of RDS Aurora MySQL
       Type: String
       Value: !GetAtt DatabaseCluster.Endpoint.Address
 
 Outputs:
-  Host:
-    Value: !GetAtt DatabaseCluster.Endpoint.Address
   Name:
     Value: !Ref DatabaseName
-  Secret:
-    Value: !Ref DatabaseSecret
+  Host:
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
   EndpointParameter:
     Value: !Ref DatabaseEndpointParameter
+  Secret:
+    Value: !Ref DatabaseSecret

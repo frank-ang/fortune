@@ -1,14 +1,13 @@
 package handler
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/ssm"
-
-	//// "github.com/aws/aws-sdk-go/aws/credentials"
-	//// "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"database/sql"
 )
 
 func GetQuote(w http.ResponseWriter, req *http.Request) {
@@ -40,6 +39,23 @@ func getMySqlEndpoint() string {
 	retval := *(result.Parameter.Value)
 	//fmt.Println(retval)
 	return retval
+}
+
+func initConfiguration() {
+	username, password := getMySqlCredentials()
+	endpoint := getMySqlEndpoint()
+	initConnectionPool(username, password, endpoint)
+}
+
+func initConnectionPool(username string, password string, endpoint string) {
+    connectionString := fmt.Sprintf("%s:%s@tcp(%s:3306)/demo", username, password, endpoint)
+	db, err := sql.Open("mysql", connectionString)
+		//"root:TODOpassword@tcp(127.0.0.1:3306)/demo")
+	if err != nil {
+		log.Fatal(err)
+	}
+	db.SetMaxIdleConns(5)
+	defer db.Close()
 }
 
 // S3 example

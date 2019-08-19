@@ -1,5 +1,9 @@
 # VPC Creation Makefile
--include ../properties.mk
+-include ../config/properties.mk
+.DEFAULT_GOAL := help
+help:
+	@echo Deploy VPC
+	@echo make validate deploy 
 
 validate:
 	# Validate the cloudformation template
