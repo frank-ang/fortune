@@ -3,33 +3,48 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"database/sql"
 )
+
+// TODO: lookup env var instead of hardcode
+var secretName = "/beta/database/playground/secret"
 
 func GetQuote(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintln(w, "Get Quote handler!")
 }
 
-func getMySqlCredentials() (string, string) {
-	return "root", "TODO"
+func getMySqlCredentials() (string, string, error) {
+	sess := session.Must(session.NewSession())
+	secretsmanagerSvc := secretsmanager.New(sess)
+	input := &secretsmanager.GetSecretValueInput{
+	    SecretId: aws.String(secretName),
+	}
+	result, err := secretsmanagerSvc.GetSecretValue(input)
+	if err != nil {
+		fmt.Println(err.Error())
+		return "", "", err
+	}
+	return "root", *result.SecretString, nil
 }
 
 // Get the MySQL endpoint from Systems Manager Parameter Store
 func getMySqlEndpoint() string {
 	sess := session.Must(session.NewSession())
 	ssmSvc := ssm.New(sess)
-	parameterName := "playground-database-endpoint"
+	parameterName := "/beta/database/playground/endpoint"
 	input := &ssm.GetParameterInput{ Name: &parameterName }
 	result, err := ssmSvc.GetParameter(input)
 	if err != nil {
-	    if aerr, ok := err.(awserr.Error); ok {
-	        switch aerr.Code() {
+	    if err, ok := err.(awserr.Error); ok {
+	        switch err.Code() {
 	        default:
-	            fmt.Println(aerr.Error())
+	            fmt.Println(err.Error())
 	        }
 	    } else {
 	        fmt.Println(err.Error())
@@ -37,12 +52,11 @@ func getMySqlEndpoint() string {
 		return ""
 	}
 	retval := *(result.Parameter.Value)
-	//fmt.Println(retval)
 	return retval
 }
 
 func initConfiguration() {
-	username, password := getMySqlCredentials()
+	username, password, _ := getMySqlCredentials()
 	endpoint := getMySqlEndpoint()
 	initConnectionPool(username, password, endpoint)
 }

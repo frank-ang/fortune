@@ -64,7 +64,7 @@ push-dockerhub: getcommit
 	docker push ${DOCKER_HUB_REPOSITORY}:latest
 	docker push $(DOCKER_HUB_REPOSITORY):${COMMIT_HASH}
 
-start-tunnel: config-db-secret
+start-db-tunnel: config-db-secret
 	@echo Starting tunnel into mysql via bastion. 
 	@# convenience for local development against remote Aurora.
 	ssh ec2-user@${BASTION_IP} -L 3306:${DB_HOST}:3306 -fN

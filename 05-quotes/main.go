@@ -17,14 +17,14 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/quote", handler.GetQuote)
-	r.HandleFunc("/", HealthCheck)
-	r.HandleFunc("/health", HealthCheck)
+	r.HandleFunc("/", Greeting)
+	r.HandleFunc("/health", Greeting)
 	http.Handle("/", r)
 	fmt.Println("Starting up on " + port)
 	log.Fatal(http.ListenAndServe(":" + port, nil))
 	fmt.Println("Exiting.")
 }
 
-func HealthCheck(w http.ResponseWriter, req *http.Request) {
+func Greeting(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintln(w, "Hello, World!")
 }
