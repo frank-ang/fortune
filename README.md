@@ -1,5 +1,7 @@
 # Yet Another Demo App ("YADA")
 
+> TODO rename project to "fortune"
+
 The real purpose is to illustrate and communicate DevOps implementations of Infrastructure as Code, CI/CD.
 
 Setup basic scaffolding. 
