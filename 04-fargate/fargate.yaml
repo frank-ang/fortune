@@ -24,16 +24,20 @@ Parameters:
     Type: AWS::EC2::SecurityGroup::Id
   PrivateSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
-
   ServiceName:
     Type: String
     Description: A name for the service
-
   ImageUrl:
     Type: String
     Default: nginx
     Description: The url of a docker image for the Task. 
         To be updated when a new image is pushed into ECR.
+  DbEndpointParameterName:
+    Type: String
+    Default: UPDATE_ME
+  DbSecretName:
+    Type: String
+    Default: UPDATE_ME
 
   ContainerPort:
     Type: Number
@@ -123,6 +127,11 @@ Resources:
               awslogs-group: !Ref CloudWatchLogsGroup
               awslogs-stream-prefix: !Ref 'ServiceName'
               awslogs-region: !Ref AWS::Region
+          Environment:
+            - Name: DB_ENDPOINT_PARAMETER_NAME
+              Value: !Ref DbEndpointParameterName
+            - Name: DB_SECRET_NAME
+              Value: !Ref DbSecretName
 
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
@@ -209,10 +218,10 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 30
+      HealthCheckIntervalSeconds: 15
       HealthCheckPath: /
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 3
       HealthyThresholdCount: 2
       TargetType: ip
       Name: !Ref 'ServiceName'
@@ -220,6 +229,9 @@ Resources:
       Protocol: HTTP
       UnhealthyThresholdCount: 2
       VpcId: !Ref VpcId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 3
 
   # Rule on the load balancer for routing traffic to the target group
   LoadBalancerRule:

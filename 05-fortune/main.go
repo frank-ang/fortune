@@ -6,7 +6,7 @@ import (
 	"os"
 	"net/http"
 	"github.com/gorilla/mux"
-	"quotes/handler"
+	"fortune/handler"
 )
 
 func main() {
@@ -14,9 +14,8 @@ func main() {
 	if port == "" {
 		port = "80"
 	}
-
 	r := mux.NewRouter()
-	r.HandleFunc("/quote", handler.GetQuote)
+	r.HandleFunc("/fortune", handler.GetFortune)
 	r.HandleFunc("/", Greeting)
 	r.HandleFunc("/health", Greeting)
 	http.Handle("/", r)
@@ -26,5 +25,5 @@ func main() {
 }
 
 func Greeting(w http.ResponseWriter, req *http.Request) {
-	fmt.Fprintln(w, "Hello, World!")
+	fmt.Fprintln(w, "Hello, Fortune!")
 }

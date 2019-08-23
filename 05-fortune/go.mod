@@ -1,4 +1,4 @@
-module quotes
+module fortune
 
 require (
 	github.com/aws/aws-sdk-go v1.22.3

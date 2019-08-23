@@ -18,7 +18,7 @@ deploy: validate init dump
       --parameter-overrides "DatabaseName=${PROJECT_TAG}Beta" \
         "VpcId=$(VPC_ID)" "VpcSecurityGroupId=$(DB_SECURITY_GROUP)" \
         "AZ1=$(AZ1)" "AZ2=$(AZ2)" "SUBNET1=$(PRIVATE_SUBNET1)" "SUBNET2=$(PRIVATE_SUBNET2)" \
-        "EndpointParameterName=${ENDPOINT_PARAMETER_NAME}" "SecretName=${SECRET_NAME}" \
+        "EndpointParameterName=${DB_ENDPOINT_PARAMETER_NAME}" "SecretName=${DB_SECRET_NAME}" \
       --stack-name ${DB_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
 
