@@ -1,32 +1,32 @@
 # quotes application 
 -include ../config/properties.mk ../config/properties.mk.gitignore
-.DEFAULT_GOAL := help
-
-CONTAINER_NAME=quotes
-LOCAL_REPOSITORY=golang-quotes
+# EDIT ME.
+LOCAL_REPOSITORY=golang-fortune
 DOCKER_HUB_REPOSITORY=frankang/golang-quotes
-AWS_DEFAULT_REGION=ap-southeast-1
-ECR_REPOSITORY=playground-container
 
+.DEFAULT_GOAL := help
 help:
-	@echo make clean build run stop 
+	@echo make clean build run stop push
+	@echo go clean
+	@echo make db-tunnel
+	@echo ./fortune
 
-build: getcommit build-local
+build: getcommit
+	go build
 	docker build -t $(LOCAL_REPOSITORY):$(COMMIT_HASH) -t $(LOCAL_REPOSITORY):latest .
-
-build-local:
-	go build -o ${CONTAINER_NAME}
 
 test: run stop
 
 run:
-	@echo runs docker container with AWS environment variables.
+	@echo run docker container with environment variables.
 	@# Set AWS_DEFAULT_REGION to your region.
 	docker run -d -p 80:80 \
 	-e AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) \
 	-e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 	-e AWS_SESSION_TOKEN=$(AWS_SESSION_TOKEN) \
-	-e AWS_DEFAULT_REGION=$(AWS_DEFAULT_REGION) \
+	-e AWS_REGION=${AWS_REGION} \
+	-e DB_ENDPOINT_PARAMETER_NAME=${DB_ENDPOINT_PARAMETER_NAME} \
+	-e DB_SECRET_NAME=${DB_SECRET_NAME} \
 	--name=$(CONTAINER_NAME) "$(LOCAL_REPOSITORY):latest"
 	curl localhost:80
 
@@ -43,18 +43,18 @@ getcommit:
 	$(eval COMMIT_HASH=$(shell git log -1 --pretty=format:"%H" | cut -c 1-7))
 	@echo COMMIT_HASH=$(COMMIT_HASH)
 
-push-ecr: getcommit
+push: getcommit
 	# Shortcut for pushing to ECR directly to private ECR repository, 
 	# convenience for bypassing pipeline, but bypasses pipeline governance.
 	# The private ECR registry is now being defined in the pipeline instead.  
 	`aws ecr get-login --no-include-email`
-	$(eval ECR_REPOSITORY_URI = $(shell aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} \
+	$(eval ECR_REPOSITORY_URI = $(shell aws ecr describe-repositories --repository-names ${ECR_REPOSITORY_NAME} \
 				| jq -r '.repositories[0].repositoryUri'))
 	docker tag ${LOCAL_REPOSITORY}:latest ${ECR_REPOSITORY_URI}:latest
 	docker tag ${LOCAL_REPOSITORY}:latest ${ECR_REPOSITORY_URI}:${COMMIT_HASH}
 	echo "pushing image to ECR_REPOSITORY_URI=${ECR_REPOSITORY_URI}"
-	@docker push ${ECR_REPOSITORY_URI}:${COMMIT_HASH}
 	@docker push ${ECR_REPOSITORY_URI}:latest
+	@docker push ${ECR_REPOSITORY_URI}:${COMMIT_HASH}
 
 push-dockerhub: getcommit
 	# Push the image to your public Docker Hub registry 
@@ -64,10 +64,10 @@ push-dockerhub: getcommit
 	docker push ${DOCKER_HUB_REPOSITORY}:latest
 	docker push $(DOCKER_HUB_REPOSITORY):${COMMIT_HASH}
 
-start-tunnel: config-db-secret
+db-tunnel: config-db-secret
 	@echo Starting tunnel into mysql via bastion. 
 	@# convenience for local development against remote Aurora.
 	ssh ec2-user@${BASTION_IP} -L 3306:${DB_HOST}:3306 -fN
 	@echo Verifying connection to local tunnel ...
-	mysql -u root -p${DB_PASSWORD} -h 127.0.0.1 -e "show databases"
+	@mysql -u root -p${DB_PASSWORD} -h 127.0.0.1 -e "show databases"
 

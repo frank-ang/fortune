@@ -123,7 +123,7 @@ Resources:
                 - IMAGE_URI="${REPOSITORY_URI}:${TAG}"
             build:
               commands:
-                - cd 05-quotes
+                - cd 05-fortune
                 - docker build --tag "$IMAGE_URI" .
             post_build:
               commands:
