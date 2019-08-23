@@ -1,4 +1,6 @@
-# shared Makefile parameters and functions for include
+# shared Makefile parameters and functions
+
+# Update to your environment as required.
 PROJECT_TAG=playground
 VPC_STACK_NAME=playground-vpc
 BASTION_STACK_NAME=playground-bastion
@@ -6,8 +8,8 @@ DB_STACK_NAME=playground-database-beta
 CONTAINER_STACK_NAME=playground-container
 KEY_PAIR=macbook2018
 PROPERTIES_FILE=../config/properties.mk.gitignore
-BetaEndpointParameterName="/beta/database/${PROJECT_TAG}/endpoint"
-BetaSecretName="/beta/database/${PROJECT_TAG}/secret"
+ENDPOINT_PARAMETER_NAME="/beta/database/${PROJECT_TAG}/endpoint"
+SECRET_NAME="/beta/database/${PROJECT_TAG}/secret"
 
 dump:
 	@echo Parameters:
@@ -56,10 +58,10 @@ init:
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "PublicIP") | .OutputValue'` >> $(PROPERTIES_FILE)
 	@echo "BASTION_INSTANCE =" `aws cloudformation describe-stacks --stack-name $(BASTION_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "InstanceId") | .OutputValue'` >> $(PROPERTIES_FILE)
-	@echo "DB_HOST =" `aws ssm get-parameter --name ${BetaEndpointParameterName} \
+	@echo "DB_HOST =" `aws ssm get-parameter --name ${ENDPOINT_PARAMETER_NAME} \
 		| jq -r '.Parameter.Value'` >> $(PROPERTIES_FILE)
 	@cat $(PROPERTIES_FILE)
 
 config-db-secret:
-	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${BetaSecretName} \
+	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} \
 					| jq -r '.SecretString' | jq -r '.password'))
