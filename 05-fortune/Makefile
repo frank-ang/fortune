@@ -6,7 +6,8 @@ DOCKER_HUB_REPOSITORY=frankang/golang-quotes
 
 .DEFAULT_GOAL := help
 help:
-	@echo make clean build run stop push
+	@echo make clean build stop test push
+	@echo optionally, make db-tunnel
 	@echo go clean
 	@echo make db-tunnel
 	@echo ./fortune
@@ -48,11 +49,9 @@ push: getcommit
 	# convenience for bypassing pipeline, but bypasses pipeline governance.
 	# The private ECR registry is now being defined in the pipeline instead.  
 	`aws ecr get-login --no-include-email`
-	$(eval ECR_REPOSITORY_URI = $(shell aws ecr describe-repositories --repository-names ${ECR_REPOSITORY_NAME} \
-				| jq -r '.repositories[0].repositoryUri'))
 	docker tag ${LOCAL_REPOSITORY}:latest ${ECR_REPOSITORY_URI}:latest
 	docker tag ${LOCAL_REPOSITORY}:latest ${ECR_REPOSITORY_URI}:${COMMIT_HASH}
-	echo "pushing image to ECR_REPOSITORY_URI=${ECR_REPOSITORY_URI}"
+	echo "pushing image to: ${ECR_REPOSITORY_URI}:${COMMIT_HASH}"
 	@docker push ${ECR_REPOSITORY_URI}:latest
 	@docker push ${ECR_REPOSITORY_URI}:${COMMIT_HASH}
 
@@ -71,3 +70,35 @@ db-tunnel: config-db-secret
 	@echo Verifying connection to local tunnel ...
 	@mysql -u root -p${DB_PASSWORD} -h 127.0.0.1 -e "show databases"
 
+update-stack: getcommit
+	@echo updating cloudformation stack: ${CONTAINER_STACK_NAME}, with image: $(ECR_REPOSITORY_URI):${COMMIT_HASH}
+	aws cloudformation deploy --capabilities CAPABILITY_IAM \
+      --template-file ../04-fargate/fargate.yaml \
+      --parameter-overrides \
+        "ServiceName=$(CONTAINER_NAME)"\
+        "VpcId=$(VPC_ID)" \
+        "PublicSubnet1=$(PUBLIC_SUBNET1)" "PublicSubnet2=$(PUBLIC_SUBNET2)" \
+        "PrivateSubnet1=$(PRIVATE_SUBNET1)" "PrivateSubnet2=$(PRIVATE_SUBNET2)" \
+        "PublicSecurityGroupId=$(DMZ_SECURITY_GROUP)" "PrivateSecurityGroupId=$(APP_SECURITY_GROUP)" \
+        "ImageUrl=$(ECR_REPOSITORY_URI):${COMMIT_HASH}" \
+        "DbEndpointParameterName=${DB_ENDPOINT_PARAMETER_NAME}" "DbSecretName=${DB_SECRET_NAME}"\
+      --stack-name ${CONTAINER_STACK_NAME} \
+      --tags "project=${PROJECT_TAG}"
+
+deploy-web:
+	@echo deploying edge cloudformation stack: ${EDGE_STACK_NAME} with bucket ${EDGE_BUCKET_NAME}
+	aws cloudformation deploy --capabilities CAPABILITY_IAM \
+      --template-file public/edge.yaml \
+      --parameter-overrides \
+        "BucketName=$(EDGE_BUCKET_NAME)"\
+      --stack-name ${EDGE_STACK_NAME} \
+      --tags "project=${PROJECT_TAG}"
+
+upload-web:
+	$(eval API_ENDPOINT = $(shell aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
+				| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "PublicLoadBalancerDNSName") | .OutputValue'))
+	@echo updating web page endpoint URL : http://${API_ENDPOINT}/fortune
+	sed "s/\(var fortuneUrl=\).*/\1'http:\/\/$(API_ENDPOINT)\/fortune'/" public/index.html > public/index.html.gitignore
+	@echo uploading web page to s3 : ${API_ENDPOINT}/fortune
+	aws s3 cp public/index.html.gitignore s3://$(EDGE_BUCKET_NAME)/index.html --acl public-read --content-type text/html
+	aws s3 cp public/raised-blockquote.css s3://$(EDGE_BUCKET_NAME)/ --acl public-read --content-type text/css

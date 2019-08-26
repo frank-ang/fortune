@@ -4,62 +4,58 @@ VPC_STACK_NAME=playground-vpc
 BASTION_STACK_NAME=playground-bastion
 DB_STACK_NAME=playground-database-beta
 CONTAINER_STACK_NAME=playground-container
+CONTAINER_NAME=fortune
+ECR_REPOSITORY_NAME=playground-repo
 KEY_PAIR=macbook2018
 PROPERTIES_FILE=../config/properties.mk.gitignore
-BetaEndpointParameterName="/beta/database/${PROJECT_TAG}/endpoint"
-BetaSecretName="/beta/database/${PROJECT_TAG}/secret"
+DB_ENDPOINT_PARAMETER_NAME="/beta/database/playground/endpoint"
+DB_SECRET_NAME="/beta/database/playground/secret"
+EDGE_BUCKET_NAME=sandbox00-fortune
+EDGE_STACK_NAME=playground-edge
 
 dump:
 	@echo Parameters:
-	@echo VPC_ID=$(VPC_ID)
-	@echo PUBLIC_SUBNET1=$(PUBLIC_SUBNET1)
-	@echo PUBLIC_SUBNET2=$(PUBLIC_SUBNET2)
-	@echo PRIVATE_SUBNET1=$(PRIVATE_SUBNET1)
-	@echo PRIVATE_SUBNET2=$(PRIVATE_SUBNET2)
-	@echo AZ1=$(AZ1)
-	@echo AZ2=$(AZ2)
-	@echo DMZ_SECURITY_GROUP=$(DB_SECURITY_GROUP)
-	@echo APP_SECURITY_GROUP=$(DB_SECURITY_GROUP)
-	@echo DB_SECURITY_GROUP=$(DB_SECURITY_GROUP)
-	@echo BASTION_INSTANCE=$(BASTION_INSTANCE)
-	@echo BASTION_IP=$(BASTION_IP)
+	@cat $(PROPERTIES_FILE)
 
 init:
-	# Set updated parameters into properties file
+	# Set updated parameters into properties file.
+	# the generated file can be included from Makefile, or sourced in a Bash shell.
 	@echo "# Dynamically generated properties file." > $(PROPERTIES_FILE)
-	@echo "VPC_ID = "`aws cloudformation describe-stack-resources \
+	@echo "export VPC_ID="`aws cloudformation describe-stack-resources \
 				--stack-name ${VPC_STACK_NAME} --logical-resource-id VPC \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
-	@echo "PUBLIC_SUBNET1 = "`aws cloudformation describe-stack-resources \
+	@echo "export PUBLIC_SUBNET1="`aws cloudformation describe-stack-resources \
 				--stack-name ${VPC_STACK_NAME} --logical-resource-id PublicSubnet1 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
-	@echo "PUBLIC_SUBNET2 = "`aws cloudformation describe-stack-resources \
+	@echo "export PUBLIC_SUBNET2="`aws cloudformation describe-stack-resources \
 				--stack-name ${VPC_STACK_NAME} --logical-resource-id PublicSubnet2 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
-	@echo "PRIVATE_SUBNET1 = "`aws cloudformation describe-stack-resources \
+	@echo "export PRIVATE_SUBNET1="`aws cloudformation describe-stack-resources \
 				--stack-name ${VPC_STACK_NAME} --logical-resource-id PrivateSubnet1 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
-	@echo "PRIVATE_SUBNET2 = "`aws cloudformation describe-stack-resources \
+	@echo "export PRIVATE_SUBNET2="`aws cloudformation describe-stack-resources \
 				--stack-name ${VPC_STACK_NAME} --logical-resource-id PrivateSubnet2 \
 				| jq -r '.StackResources[0].PhysicalResourceId'` >> $(PROPERTIES_FILE)
-	@echo "AZ1 =" `aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNET1} \
+	@echo "export AZ1="`aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNET1} \
 				| jq -r '.Subnets[0].AvailabilityZone'` >> $(PROPERTIES_FILE)
-	@echo "AZ2 =" `aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNET2} \
+	@echo "export AZ2="`aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNET2} \
 				| jq -r '.Subnets[0].AvailabilityZone'` >> ${PROPERTIES_FILE}
-	@echo "DMZ_SECURITY_GROUP =" `aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+	@echo "export DMZ_SECURITY_GROUP="`aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DmzSecurityGroup") | .OutputValue'` >> $(PROPERTIES_FILE)
-	@echo "APP_SECURITY_GROUP =" `aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+	@echo "export APP_SECURITY_GROUP="`aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "AppSecurityGroup") | .OutputValue'` >> $(PROPERTIES_FILE)
-	@echo "DB_SECURITY_GROUP =" `aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+	@echo "export DB_SECURITY_GROUP="`aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DbSecurityGroup") | .OutputValue'` >> $(PROPERTIES_FILE)
-	@echo "BASTION_IP =" `aws cloudformation describe-stacks --stack-name $(BASTION_STACK_NAME) \
+	@echo "export BASTION_IP="`aws cloudformation describe-stacks --stack-name $(BASTION_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "PublicIP") | .OutputValue'` >> $(PROPERTIES_FILE)
-	@echo "BASTION_INSTANCE =" `aws cloudformation describe-stacks --stack-name $(BASTION_STACK_NAME) \
+	@echo "export BASTION_INSTANCE="`aws cloudformation describe-stacks --stack-name $(BASTION_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "InstanceId") | .OutputValue'` >> $(PROPERTIES_FILE)
-	@echo "DB_HOST =" `aws ssm get-parameter --name ${BetaEndpointParameterName} \
+	@echo "export DB_HOST="`aws ssm get-parameter --name ${DB_ENDPOINT_PARAMETER_NAME} \
 		| jq -r '.Parameter.Value'` >> $(PROPERTIES_FILE)
+	@echo "export ECR_REPOSITORY_URI="`aws ecr describe-repositories --repository-names ${ECR_REPOSITORY_NAME} \
+				| jq -r '.repositories[0].repositoryUri'`  >> $(PROPERTIES_FILE)
 	@cat $(PROPERTIES_FILE)
 
 config-db-secret:
-	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${BetaSecretName} \
+	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${DB_SECRET_NAME} \
 					| jq -r '.SecretString' | jq -r '.password'))

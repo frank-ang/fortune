@@ -6,6 +6,7 @@ import (
 	"os"
 	"net/http"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/handlers"
 	"fortune/handler"
 )
 
@@ -14,13 +15,17 @@ func main() {
 	if port == "" {
 		port = "80"
 	}
+
 	r := mux.NewRouter()
-	r.HandleFunc("/fortune", handler.GetFortune)
+	r.HandleFunc("/fortune", handler.GetFortune) // .Methods("GET")//, "OPTIONS")
+
 	r.HandleFunc("/", Greeting)
 	r.HandleFunc("/health", Greeting)
 	http.Handle("/", r)
+
 	fmt.Println("Starting up on " + port)
-	log.Fatal(http.ListenAndServe(":" + port, nil))
+	corsObj := handlers.AllowedOrigins([]string{"*"})
+	log.Fatal(http.ListenAndServe(":" + port, handlers.CORS(corsObj)(r)))
 	fmt.Println("Exiting.")
 }
 
