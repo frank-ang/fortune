@@ -3,13 +3,14 @@
 .DEFAULT_GOAL := help
 
 help:
-	@echo "make validate init deploy"
+	@echo "creates the Fargate cluster resource"
+	@echo "make [ validate | init | deploy | create-repo | clean-repo ]"
 
 validate: 
 	aws cloudformation validate-template --template-body file://fargate.yaml
 
 deploy: validate
-	@echo deploys an nginx container
+	@echo deploys the fargate cluster service with an nginx container
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
       --template-file ./fargate.yaml \
       --parameter-overrides \
@@ -21,3 +22,10 @@ deploy: validate
         "ImageUrl=nginx" \
       --stack-name ${CONTAINER_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
+
+create-repo:
+	@echo deploy an empty ECR repository, we decouple the repo outside of CloudFormation.
+	aws ecr create-repository --repository-name "${ECR_REPOSITORY_NAME}" --tags "Key=project,Value=${PROJECT_TAG}"
+
+clean-repo:
+	aws ecr delete-repository --repository-name "${ECR_REPOSITORY_NAME}"

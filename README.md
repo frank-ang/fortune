@@ -18,7 +18,7 @@ Setup basic scaffolding.
 * Install ```jq```, ```aws cli```, ```make```.
 * Configure ```properties.mk``` with your desired parameters.
 
-### VPC Network
+### 1. VPC Network
 
 Deploy Cloudformation stack to create a VPC (Virtual Private Cloud), that has:
 * 2 public Subnets, 
@@ -27,26 +27,26 @@ Deploy Cloudformation stack to create a VPC (Virtual Private Cloud), that has:
 * 4 Security Groups for Bastion, DMZ, Application, and Database
 
 ```
-cd vpc
+cd 01-vpc
 make validate && make deploy
 ```
 
-### Bastion Host
+### 2. Bastion Host
 
 Create 1 Bastion EC2 host into a public subnet, Bastion security group. Amazon Linux configured with SSM and CloudWatch agent.
 
 ```
-cd bastion
-make validate
-make deploy
+cd ../02-bastion
+make validate && make deploy
 ```
 
-### RDS Database 
+### 3. RDS Database 
 
-1. Create an RDS Aurora MySQL serverless cluster inside a private subnet
+1. Create an RDS Aurora MySQL serverless cluster inside a private subnet. 
+```make init``` is required to initialize confiugration parameters.
 
 ```
-cd database
+cd ../03-database
 make validate 
 make init
 make deploy
@@ -54,9 +54,10 @@ make deploy
 
 Please wait for the RDS MySQL database creation to complete, before proceeding to load data.
 
-2. Load sample data
+2. Load sample data. Again, call ```make init``` again to init parameters, such as the endpoint of the newly-created database.
 
 ```
+make init
 make load 
 ```
 Accept any SSH prompts if its the first time connecting to the bastion host.
@@ -70,13 +71,13 @@ Accept any SSH prompts if its the first time connecting to the bastion host.
 >
 >> Credits: Sample quotes sourced from [https://raw.githubusercontent.com/akhiltak/inspirational-quotes/master/Quotes.csv]
 
-### Container Cluster
+### 4. Container Cluster
 
 Deploy Fargate cluster and sample app.
 
 ```
-cd fargate
-make verify
+cd ../04-fargate
+make validate
 make init
 make deploy
 ```
@@ -90,21 +91,27 @@ What this creates:
 >Get the public load balancer DNS endpoint (see stack output). 
 >Open in a browser to view the Nginx sample web page.  
 
-### Quotes Application Image.
+### 5. Quotes Application.
 
-Build the application.
+Build the fortune application image. Publish to ECR.
+
+1. Start Docker desktop. Build docker image.
+
 ```
-cd quotes
+cd ../05-quotes
 make clean
 make build
 make run
 make stop
 ```
 
-### Quotes Application Pipeline.
+What this does: 
+* 
+
+### 6. Quotes Application Pipeline.
 
 ```
-cd pipeline
+cd ../06-pipeline
 make verify
 make deploy
 ```

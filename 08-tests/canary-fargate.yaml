@@ -1,12 +1,8 @@
-# Setup Fargate Private Subnet, Public Load Balancer
-#
-# Based on  template at https://github.com/nathanpeck/aws-cloudformation-fargate
+# Setup Canary container cluster
 
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Setup ECS cluster on AWS Fargate, hosted in a private subnet.
-             Accessible via a public load balancer.
-             Setup supporting ECR container registry.
+Description: Setup Canary ECS cluster on AWS Fargate.
 
 Parameters:
 
@@ -16,13 +12,7 @@ Parameters:
     Type: String
   PublicSubnet2:
     Type: String
-  PrivateSubnet1:
-    Type: String
-  PrivateSubnet2:
-    Type: String
   PublicSecurityGroupId:
-    Type: AWS::EC2::SecurityGroup::Id
-  PrivateSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
   ServiceName:
     Type: String
@@ -32,17 +22,16 @@ Parameters:
     Default: nginx
     Description: The url of a docker image for the Task. 
         To be updated when a new image is pushed into ECR.
-  DbEndpointParameterName:
+  apiEndpoint:
     Type: String
-    Default: UPDATE_ME
-  DbSecretName:
-    Type: String
-    Default: UPDATE_ME
-
-  ContainerPort:
+  canaryIterations:
     Type: Number
-    Default: 80
-    Description: What port number the application inside the docker container is binding to
+  testIterations:
+    Type: Number
+  delayRequestMs:
+    Type: Number
+  metricNamespace:
+    Type: String
   ContainerCpu:
     Type: Number
     Default: 256
@@ -51,18 +40,6 @@ Parameters:
     Type: Number
     Default: 512
     Description: How much memory in megabytes to give the container
-  Path:
-    Type: String
-    Default: "*"
-    Description: A path on the public load balancer that this service
-                 should be connected to. Use * to send all load balancer
-                 traffic to this service.
-  Priority:
-    Type: Number
-    Default: 1
-    Description: The priority for the routing rule added to the load balancer.
-                 This only applies if your have multiple services which have been
-                 assigned to different paths on the load balancer.
   DesiredCount:
     Type: Number
     Default: 1
@@ -79,7 +56,6 @@ Resources:
   # and ensures a desired number of copies are running. 
   Service:
     Type: AWS::ECS::Service
-    DependsOn: LoadBalancerRule
     Properties:
       ServiceName: !Ref 'ServiceName'
       Cluster: !Ref ECSCluster
@@ -91,15 +67,12 @@ Resources:
       DesiredCount: !Ref 'DesiredCount'
       NetworkConfiguration:
         AwsvpcConfiguration:
-          SecurityGroups: [ !Ref PrivateSecurityGroupId ]
+          AssignPublicIp: ENABLED
+          SecurityGroups: [ !Ref PublicSecurityGroupId ]
           Subnets:
-            - !Ref PrivateSubnet1
-            - !Ref PrivateSubnet2
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
       TaskDefinition: !Ref 'TaskDefinition'
-      LoadBalancers:
-        - ContainerName: !Ref 'ServiceName'
-          ContainerPort: !Ref 'ContainerPort'
-          TargetGroupArn: !Ref 'TargetGroup'
 
   # The task definition. This is a simple metadata description of what
   # container to run, and what resource requirements it has.
@@ -119,8 +92,6 @@ Resources:
           Cpu: !Ref 'ContainerCpu'
           Memory: !Ref 'ContainerMemory'
           Image: !Ref 'ImageUrl'
-          PortMappings:
-            - ContainerPort: !Ref 'ContainerPort'
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -128,10 +99,16 @@ Resources:
               awslogs-stream-prefix: !Ref 'ServiceName'
               awslogs-region: !Ref AWS::Region
           Environment:
-            - Name: DB_ENDPOINT_PARAMETER_NAME
-              Value: !Ref DbEndpointParameterName
-            - Name: DB_SECRET_NAME
-              Value: !Ref DbSecretName
+            - Name: API_ENDPOINT
+              Value: !Ref apiEndpoint
+            - Name: CANARY_ITERATIONS
+              Value: !Ref canaryIterations
+            - Name: TEST_ITERATIONS
+              Value: !Ref testIterations
+            - Name: DELAY_REQUEST_MS
+              Value: !Ref delayRequestMs
+            - Name: METRIC_NAMESPACE
+              Value: !Ref metricNamespace
 
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
@@ -156,9 +133,7 @@ Resources:
             Statement:
             - Effect: Allow
               Action:
-                - 'ssm:*'
-                - 'secretsmanager:*'
-                - 's3:*'
+                - 'cloudwatch:PutMetricData'
               Resource: '*'
 
   # Role used by ECS tasks to pull from ECR and push to CloudWatch
@@ -186,69 +161,7 @@ Resources:
                 - 'logs:PutLogEvents'
               Resource: '*'
 
-  # Load Balancer for Fargate service
-  PublicLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Scheme: internet-facing
-      LoadBalancerAttributes:
-      - Key: idle_timeout.timeout_seconds
-        Value: '60'
-      Subnets:
-        # The load balancer is placed into the public subnets, so that traffic
-        # from the internet can reach the load balancer directly via the internet gateway
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
-      SecurityGroups: [!Ref 'PublicSecurityGroupId']
-
-  PublicLoadBalancerListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    DependsOn:
-      - PublicLoadBalancer
-    Properties:
-      DefaultActions:
-        - TargetGroupArn: !Ref 'TargetGroup'
-          Type: 'forward'
-      LoadBalancerArn: !Ref 'PublicLoadBalancer'
-      Port: 80
-      Protocol: HTTP
-
-  # A Load Balancer target group. 
-  # This is used for keeping track of backend tasks for traffic distribution.
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 15
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 3
-      HealthyThresholdCount: 2
-      TargetType: ip
-      Name: !Ref 'ServiceName'
-      Port: !Ref 'ContainerPort'
-      Protocol: HTTP
-      UnhealthyThresholdCount: 2
-      VpcId: !Ref VpcId
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: 3
-
-  # Rule on the load balancer for routing traffic to the target group
-  LoadBalancerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      Actions:
-        - TargetGroupArn: !Ref 'TargetGroup'
-          Type: 'forward'
-      Conditions:
-        - Field: path-pattern
-          Values: [!Ref 'Path']
-      ListenerArn: !Ref PublicLoadBalancerListener
-      Priority: !Ref 'Priority'
-
 Outputs:
-  PublicLoadBalancerDNSName:
-    Value: !GetAtt PublicLoadBalancer.DNSName
   ECSClusterName:
     Value: !Ref ECSCluster
   ServiceName:
