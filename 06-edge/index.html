@@ -1,0 +1,57 @@
+<html>
+<head>
+	<link href='./raised-blockquote.css' rel='stylesheet' type='text/css'>
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+	<script>
+		// the API endpoint is dynamically set.
+		var fortuneUrl=foobar
+		window.addEventListener('DOMContentLoaded', function() {
+			new Vue({
+				el: '#quote',
+				data () {
+					return {
+						result: null,
+						loading: true,
+						errored: false
+					}
+				},
+				mounted () {
+					axios
+				      .get(fortuneUrl)
+				      .then(response => {
+				      	this.result = response.data
+				      })
+				      .catch(error => {
+				      	console.log(error)
+				      	this.errored = true
+				      })
+				      .finally(() => this.loading = false)
+				  }
+				});
+		});
+	</script>
+</head>
+<body>
+
+	<div id="quote">
+		<h1>Fortune</h1>
+
+		<section v-if="errored">
+			<p>We're sorry, we're not able to retrieve this information at the moment, please try back later</p>
+		</section>
+
+		<section v-else>
+			<div v-if="loading">Loading fortune...</div>
+
+			<div v-else>
+				<blockquote>
+					{{ result.Quote }}
+					<span class="author"><i>{{ result.Author }}</i></span>
+				</blockquote>
+			</div>
+
+		</section>
+	</div>
+</body>
+</html>

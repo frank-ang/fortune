@@ -5,17 +5,16 @@
 .DEFAULT_GOAL := help
 help:
 	@echo deploys the Aurora RDS Database
-	@echo make validate init deploy load test
+	@echo "make [ validate | init | deploy | load | test]"
 
 validate:
 	aws cloudformation validate-template --template-body file://aurora-mysql-serverless.yaml
 
-deploy: validate init dump
+deploy:
 	@echo deploying database...
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
       --template-file ./aurora-mysql-serverless.yaml \
-      @# TODO FIX Beta reference \
-      --parameter-overrides "DatabaseName=${PROJECT_TAG}Beta" \
+      --parameter-overrides "DatabaseName=${PROJECT_TAG}" \
         "VpcId=$(VPC_ID)" "VpcSecurityGroupId=$(DB_SECURITY_GROUP)" \
         "AZ1=$(AZ1)" "AZ2=$(AZ2)" "SUBNET1=$(PRIVATE_SUBNET1)" "SUBNET2=$(PRIVATE_SUBNET2)" \
         "EndpointParameterName=${DB_ENDPOINT_PARAMETER_NAME}" "SecretName=${DB_SECRET_NAME}" \

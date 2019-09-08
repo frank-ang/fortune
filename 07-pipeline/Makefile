@@ -1,19 +1,10 @@
 # Pipeline 
 -include ../config/properties.mk ../config/properties.mk.gitignore
-<<<<<<< HEAD
 
 # EDIT ME
 GitHubRepo=DeployPlayground
 GitHubBranch=dev-cicd
 GitHubUser=frank-ang
-
-=======
-PIPELINE_STACK_NAME=playground-pipeline
-REPOSITORY_NAME=playground-repo
-GitHubRepo=DeployPlayground
-GitHubBranch=dev-cicd
-GitHubUser=frank-ang
->>>>>>> dev
 Cluster := $(shell aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "ECSClusterName") | .OutputValue')
 ServiceName:= $(shell aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
@@ -36,10 +27,6 @@ deploy: validate
       --parameter-overrides \
 		"GitHubRepo=${GitHubRepo}" "GitHubBranch=${GitHubBranch}" \
 		"GitHubUser=${GitHubUser}" "GitHubToken=${GitHubToken}" \
-<<<<<<< HEAD
 		"Cluster=$(Cluster)" "ServiceName=$(ServiceName)" "Repository=${ECR_REPOSITORY_NAME}"\
-=======
-		"Cluster=$(Cluster)" "ServiceName=$(ServiceName)" "Repository=${REPOSITORY_NAME}"\
->>>>>>> dev
       --stack-name ${PIPELINE_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
