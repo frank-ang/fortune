@@ -2,22 +2,20 @@
 # Deploy the Bastion Host
 -include ../config/properties.mk
 TEMPLATE_FILE := bastion_host.yaml
-VPC_ID        := $(shell aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id VPC \
-				| jq -r '.StackResources[0].PhysicalResourceId')
-SUBNET_ID     := $(shell aws cloudformation describe-stack-resources \
-				--stack-name $(VPC_STACK_NAME) --logical-resource-id PublicSubnet1 \
-				| jq -r '.StackResources[0].PhysicalResourceId')
-AZ            := $(shell aws ec2 describe-subnets --subnet-ids ${SUBNET_ID} \
-				| jq -r '.Subnets[0].AvailabilityZone')
-BASTION_SECURITY_GROUP := $(shell aws cloudformation describe-stack-resources \
-		--stack-name $(VPC_STACK_NAME) --logical-resource-id BastionSecurityGroup \
-		| jq -r '.StackResources[0].PhysicalResourceId')
+VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "VPC") | .OutputValue')
+
+SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+				| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "PublicSubnet1") | .OutputValue')
+AZ := $(shell aws ec2 describe-subnets --subnet-ids ${SUBNET_ID} \
+		| jq -r '.Subnets[0].AvailabilityZone')
+BASTION_SECURITY_GROUP := $(shell aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+						| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "BastionSecurityGroup") | .OutputValue')
 
 .DEFAULT_GOAL := help
 help:
 	@echo Deploys the bastion host.
-	@echo make validate deploy 
+	@echo "make [ validate | deploy ]"
 
 validate: 
 	aws cloudformation validate-template --template-body file://${TEMPLATE_FILE}
