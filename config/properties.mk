@@ -53,6 +53,8 @@ init:
 				| jq -r '.repositories[0].repositoryUri'`  >> $(PROPERTIES_FILE)
 	@echo "export API_ENDPOINT="`aws cloudformation describe-stacks --stack-name $(CONTAINER_STACK_NAME) \
 				| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "PublicLoadBalancerDNSName") | .OutputValue'` >> $(PROPERTIES_FILE)
+	@echo "export BASTION_SECURITY_GROUP="`aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
+				| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "BastionSecurityGroup") | .OutputValue'` >> $(PROPERTIES_FILE)
 	@cat $(PROPERTIES_FILE)
 
 dump:

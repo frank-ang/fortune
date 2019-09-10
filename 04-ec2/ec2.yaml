@@ -1,0 +1,177 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon Linux with CloudWatchAgent and CodeDeploy Agent'
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.nano
+  InstanceAMI:
+    Description: Amazon Linux AMI ID
+    Type : String
+    Default: ami-048a01c78f7bae4aa
+  VpcId:
+    Type: String
+  PublicSubnet1:
+    Type: String
+  PublicSubnet2:
+    Type: String
+  PrivateSubnet1:
+    Type: String
+  PrivateSubnet2:
+    Type: String
+  PublicSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  PrivateSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+
+  MyLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref InstanceAMI
+      SecurityGroups:
+      - !Ref PrivateSecurityGroupId
+      InstanceType: !Ref InstanceType
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sdk"
+        Ebs:
+          VolumeSize: '20'
+      KeyName: !Ref KeyName
+      #IamInstanceProfile: MyInstanceProfile
+      IamInstanceProfile: !Ref MyInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash
+           # install codedeploy agent
+           yum -y update
+           yum install -y ruby
+           cd /home/ec2-user
+           curl -O https://aws-codedeploy-ap-southeast-1.s3.amazonaws.com/latest/install
+           chmod +x ./install
+           ./install auto
+           # install cloudwatch agent
+           rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource MyLaunchConfig --region ${AWS::Region} --configsets default
+           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource MyLaunchConfig --region ${AWS::Region}
+
+  MyServerGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      #AvailabilityZones:
+      #  - !Ref AZ1
+      #  - !Ref AZ2
+      VPCZoneIdentifier: 
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      LaunchConfigurationName:
+        Ref: MyLaunchConfig
+      MinSize: '1'
+      MaxSize: '2'
+      DesiredCapacity: '1'
+      #TargetGroupARNs:
+      #- !Ref TargetGroupARN
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackId}-app"
+          PropagateAtLaunch: "true"
+
+  MyInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Roles: 
+        - !Ref Ec2IamRole
+
+  Ec2IamRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+
+  # Load Balancer for Autoscaling group 
+  PublicLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+      - Key: idle_timeout.timeout_seconds
+        Value: '60'
+      Subnets:
+        # The load balancer is placed into the public subnets, so that traffic
+        # from the internet can reach the load balancer directly via the internet gateway
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups: [!Ref 'PublicSecurityGroupId']
+
+  PublicLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - PublicLoadBalancer
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          Type: 'forward'
+      LoadBalancerArn: !Ref 'PublicLoadBalancer'
+      Port: 80
+      Protocol: HTTP
+
+  # A Load Balancer target group. 
+  # This is used for keeping track of backend tasks for traffic distribution.
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      #HealthCheckIntervalSeconds: 15
+      #HealthCheckPath: /
+      #HealthCheckProtocol: HTTP
+      #HealthCheckTimeoutSeconds: 3
+      #HealthyThresholdCount: 2
+      TargetType: ip
+      #Name: !Ref 'ServiceName'
+      Port: 80
+      Protocol: HTTP
+      #UnhealthyThresholdCount: 2
+      VpcId: !Ref VpcId
+      #TargetGroupAttributes:
+      #  - Key: deregistration_delay.timeout_seconds
+      #    Value: 3
+
+  # Rule on the load balancer for routing traffic to the target group
+  LoadBalancerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          Type: 'forward'
+      Conditions:
+        - Field: path-pattern
+          Values: [ "*" ]
+      ListenerArn: !Ref PublicLoadBalancerListener
+      Priority: 1
+
+
+Outputs:
+  AutoscalingGroupName:
+    Description: Autoscaling Group Name
+    Value:
+      Ref: MyServerGroup
+  LaunchConfiguration:
+    Description: Launch Config
+    Value:
+      Ref: MyLaunchConfig
+  

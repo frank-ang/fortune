@@ -1,4 +1,4 @@
-# quotes application 
+# Fortune Application 
 -include ../config/properties.mk ../config/properties.mk.gitignore
 # EDIT ME.
 LOCAL_REPOSITORY=golang-fortune
@@ -12,14 +12,17 @@ help:
 	@echo ./fortune
 
 build: getcommit
+	@# builds docker container
 	go build
 	docker build -t $(LOCAL_REPOSITORY):$(COMMIT_HASH) -t $(LOCAL_REPOSITORY):latest .
+
+build-linux:
+	GOOS=linux GOARCH=amd64 go build -v -o fortune.linux .
 
 test: run stop
 
 run:
 	@echo run docker container with environment variables.
-	@# Set AWS_DEFAULT_REGION to your region.
 	docker run -d -p 80:80 \
 	-e AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) \
 	-e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
