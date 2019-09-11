@@ -40,6 +40,7 @@ get-instance-id:
 
 validate: 
 	aws cloudformation validate-template --template-body file://${TEMPLATE_FILE}
+	cfn-lint ${TEMPLATE_FILE}
 
 deploy: validate
 	aws cloudformation deploy --capabilities CAPABILITY_NAMED_IAM \

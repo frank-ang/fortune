@@ -16,6 +16,38 @@ Parameters:
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
 Resources:
+
+
+
+  # Deprecated
+  MyLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref InstanceAMI
+      SecurityGroups:
+      - !Ref PrivateSecurityGroupId
+      InstanceType: !Ref InstanceType
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sdk"
+        Ebs:
+          VolumeSize: '20'
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref MyInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+           #!/bin/bash
+           # install codedeploy agent
+           yum -y update
+           yum install -y ruby
+           cd /home/ec2-user
+           curl -O https://aws-codedeploy-ap-southeast-1.s3.amazonaws.com/latest/install
+           chmod +x ./install
+           ./install auto
+           # install cloudwatch agent
+           rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource MyLaunchConfig --region ${AWS::Region} --configsets default
+           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource MyLaunchConfig --region ${AWS::Region}
+
   EC2Instance:
     Type: AWS::EC2::Instance
     Metadata:

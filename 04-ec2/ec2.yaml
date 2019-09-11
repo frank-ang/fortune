@@ -11,7 +11,7 @@ Parameters:
     Default: t3.nano
   InstanceAMI:
     Description: Amazon Linux AMI ID
-    Type : String
+    Type : AWS::EC2::Image::Id
     Default: ami-048a01c78f7bae4aa
   VpcId:
     Type: String
@@ -27,58 +27,99 @@ Parameters:
     Type: AWS::EC2::SecurityGroup::Id
   PrivateSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
+  SSMKey:
+    Type: String
+    Default: AmazonCloudWatch-linux
 
 Resources:
 
-  MyLaunchConfig:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  MyLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - 03_restart_amazon-cloudwatch-agent
+        # Invoke amazon-cloudwatch-agent-ctl to restart the AmazonCloudWatchAgent.
+        03_restart_amazon-cloudwatch-agent:
+          commands:
+            01_stop_service:
+              command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a stop
+            02_start_service:
+              command:
+                Fn::Sub:
+                  - |
+                    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${ssmkey} -s
+                  - { ssmkey: !Ref SSMKey }
+          packages:
+            yum:
+              mysql: []
     Properties:
-      ImageId: !Ref InstanceAMI
-      SecurityGroups:
-      - !Ref PrivateSecurityGroupId
-      InstanceType: !Ref InstanceType
-      BlockDeviceMappings:
-      - DeviceName: "/dev/sdk"
-        Ebs:
-          VolumeSize: '20'
-      KeyName: !Ref KeyName
-      #IamInstanceProfile: MyInstanceProfile
-      IamInstanceProfile: !Ref MyInstanceProfile
-      UserData:
-        Fn::Base64: !Sub |
-           #!/bin/bash
-           # install codedeploy agent
-           yum -y update
-           yum install -y ruby
-           cd /home/ec2-user
-           curl -O https://aws-codedeploy-ap-southeast-1.s3.amazonaws.com/latest/install
-           chmod +x ./install
-           ./install auto
-           # install cloudwatch agent
-           rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
-           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource MyLaunchConfig --region ${AWS::Region} --configsets default
-           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource MyLaunchConfig --region ${AWS::Region}
+      LaunchTemplateData: 
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+            - Key: Name
+              Value: !Sub "${AWS::StackName}-instance"
+        BlockDeviceMappings:
+          - DeviceName: "/dev/sda1"
+            Ebs:
+              VolumeSize: 20
+        IamInstanceProfile: 
+          Arn: !GetAtt "MyInstanceProfile.Arn"
+        UserData:
+          Fn::Base64: !Sub |
+                 #!/bin/bash
+                 # install Cloudwatch agent            
+                 rpm -Uvh https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+                 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${SSMKey} -s
+                 # CFN init setup
+                 /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource MyAutoScalingGroup --region ${AWS::Region} --configsets default
+                 # install CodeDeploy
+                 yum install -y ruby
+                 cd /home/ec2-user
+                 curl -O https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install
+                 chmod +x ./install
+                 ./install auto
+                 # CFN signal completion status
+                 # TODO this appears broken...
+                 /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource MyAutoScalingGroup --region ${AWS::Region}
 
-  MyServerGroup:
+        SecurityGroupIds:
+          - !Ref PrivateSecurityGroupId
+        KeyName: !Ref KeyName 
+        ImageId: !Ref InstanceAMI
+        InstanceType: !Ref InstanceType
+        #Monitoring: todo
+
+  MyAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    #CreationPolicy:
+    #  ResourceSignal:
+    #    Timeout: PT15M
+    #    Count: 1
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT5M
+        WaitOnResourceSignals: false
     Properties:
-      #AvailabilityZones:
-      #  - !Ref AZ1
-      #  - !Ref AZ2
       VPCZoneIdentifier: 
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
-      LaunchConfigurationName:
-        Ref: MyLaunchConfig
+      LaunchTemplate:
+        LaunchTemplateId: !Ref MyLaunchTemplate 
+        Version: '22'
       MinSize: '1'
       MaxSize: '2'
       DesiredCapacity: '1'
-      #TargetGroupARNs:
-      #- !Ref TargetGroupARN
+      TargetGroupARNs:
+        - !Ref TargetGroup
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackId}-app"
-          PropagateAtLaunch: "true"
+          Value: !Sub "${AWS::StackName}-instance"
+          PropagateAtLaunch: true
 
   MyInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -89,10 +130,6 @@ Resources:
   Ec2IamRole:
     Type: "AWS::IAM::Role"
     Properties:
-      ManagedPolicyArns: 
-        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-        - "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
-        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
       AssumeRolePolicyDocument: 
         Version: "2012-10-17"
         Statement: 
@@ -103,8 +140,25 @@ Resources:
                 - "ec2.amazonaws.com"
             Action: 
               - "sts:AssumeRole"
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-Ec2IamPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "cloudformation:Describe*"
+                  - "cloudformation:List*"
+                  - "cloudformation:Get*"
+                  - "cloudformation:SignalResource"
+                Resource: "*" 
 
-  # Load Balancer for Autoscaling group 
+  # Public Load Balancer for Autoscaling group 
   PublicLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -113,21 +167,17 @@ Resources:
       - Key: idle_timeout.timeout_seconds
         Value: '60'
       Subnets:
-        # The load balancer is placed into the public subnets, so that traffic
-        # from the internet can reach the load balancer directly via the internet gateway
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
-      SecurityGroups: [!Ref 'PublicSecurityGroupId']
+      SecurityGroups: [!Ref PublicSecurityGroupId]
 
   PublicLoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
-    DependsOn:
-      - PublicLoadBalancer
     Properties:
       DefaultActions:
-        - TargetGroupArn: !Ref 'TargetGroup'
-          Type: 'forward'
-      LoadBalancerArn: !Ref 'PublicLoadBalancer'
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref PublicLoadBalancer
       Port: 80
       Protocol: HTTP
 
@@ -141,7 +191,7 @@ Resources:
       #HealthCheckProtocol: HTTP
       #HealthCheckTimeoutSeconds: 3
       #HealthyThresholdCount: 2
-      TargetType: ip
+      TargetType: instance
       #Name: !Ref 'ServiceName'
       Port: 80
       Protocol: HTTP
@@ -149,7 +199,7 @@ Resources:
       VpcId: !Ref VpcId
       #TargetGroupAttributes:
       #  - Key: deregistration_delay.timeout_seconds
-      #    Value: 3
+      #    Value: 60
 
   # Rule on the load balancer for routing traffic to the target group
   LoadBalancerRule:
@@ -164,14 +214,15 @@ Resources:
       ListenerArn: !Ref PublicLoadBalancerListener
       Priority: 1
 
-
 Outputs:
+  LoadBalancerDNSName:
+    Value: !GetAtt PublicLoadBalancer.DNSName
   AutoscalingGroupName:
     Description: Autoscaling Group Name
     Value:
-      Ref: MyServerGroup
-  LaunchConfiguration:
-    Description: Launch Config
+      Ref: MyAutoScalingGroup
+  LaunchTemplate:
+    Description: Launch Template
     Value:
-      Ref: MyLaunchConfig
+      Ref: MyLaunchTemplate
   
