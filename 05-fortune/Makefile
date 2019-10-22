@@ -11,7 +11,7 @@ help:
 	@echo make db-tunnel
 	@echo ./fortune
 
-build: getcommit
+build:
 	@# builds docker container
 	go build
 	docker build -t $(LOCAL_REPOSITORY):$(COMMIT_HASH) -t $(LOCAL_REPOSITORY):latest .
@@ -20,6 +20,13 @@ build-linux:
 	GOOS=linux GOARCH=amd64 go build -v -o fortune.linux .
 
 test: run stop
+
+db-tunnel: config-db-secret
+	@echo Starting tunnel into mysql via bastion. 
+	@# convenience for local development against remote Aurora.
+	ssh ec2-user@${BASTION_IP} -L 3306:${DB_HOST}:3306 -fN
+	@echo Verifying connection to local tunnel ...
+	@mysql -u root -p${DB_PASSWORD} -h 127.0.0.1 -e "show databases"
 
 run:
 	@echo run docker container with environment variables.
@@ -39,12 +46,6 @@ stop:
 
 clean: stop
 	go clean
-
-getcommit:
-	# Sets the 7-char Git commit hash.
-	@# TODO, If using AWS CodeCommit, should set from \$CODEBUILD_RESOLVED_SOURCE_VERSION variable
-	$(eval COMMIT_HASH=$(shell git log -1 --pretty=format:"%H" | cut -c 1-7))
-	@echo COMMIT_HASH=$(COMMIT_HASH)
 
 push: getcommit
 	# Shortcut for pushing to ECR directly to private ECR repository, 
@@ -66,11 +67,3 @@ push-dockerhub: getcommit
 	docker tag ${LOCAL_REPOSITORY}:latest ${DOCKER_HUB_REPOSITORY}:${COMMIT_HASH}
 	docker push ${DOCKER_HUB_REPOSITORY}:latest
 	docker push $(DOCKER_HUB_REPOSITORY):${COMMIT_HASH}
-
-db-tunnel: config-db-secret
-	@echo Starting tunnel into mysql via bastion. 
-	@# convenience for local development against remote Aurora.
-	ssh ec2-user@${BASTION_IP} -L 3306:${DB_HOST}:3306 -fN
-	@echo Verifying connection to local tunnel ...
-	@mysql -u root -p${DB_PASSWORD} -h 127.0.0.1 -e "show databases"
-

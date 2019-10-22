@@ -1,12 +1,8 @@
-# Yet Another Demo App ("YADA")
+# Fortune 
 
-> TODO rename project to "fortune"
+Aka: Yet Another Demo App ("YADA?")
 
-The real purpose is to illustrate and communicate DevOps implementations of Infrastructure as Code, CI/CD.
-
-Setup basic scaffolding. 
-
-** Work in progress. **
+Purpose: illustrate and communicate DevOps practices through a very simple app that does nothing than reply with quotation.
 
 
 
@@ -18,9 +14,13 @@ Setup basic scaffolding.
 * Install ```jq```, ```aws cli```, ```make```.
 * Configure ```properties.mk``` with your desired parameters.
 
+### 0. Configuration parameters
+
+Update [config/properties.mk](config/properties.mk) with desired parameters.
+
 ### 1. VPC Network
 
-Deploy Cloudformation stack to create a VPC (Virtual Private Cloud), that has:
+Deploy Cloudformation stack to create a VPC (Virtual Private Cloud). Contains:
 * 2 public Subnets, 
 * 2 private Subnets, 
 * 1 NAT Gateway, 
@@ -35,30 +35,29 @@ make validate && make deploy
 
 Create 1 Bastion EC2 host into a public subnet, Bastion security group. Amazon Linux configured with SSM and CloudWatch agent.
 
+```make init``` is required to initialize configuration parameters.
+
 ```
 cd ../02-bastion
-make validate && make deploy
+make validate && make init && make deploy
 ```
 
 ### 3. RDS Database 
 
 1. Create an RDS Aurora MySQL serverless cluster inside a private subnet. 
-```make init``` is required to initialize confiugration parameters.
+```make init``` is required (again) to initialize configuration parameters.
 
 ```
 cd ../03-database
-make validate 
-make init
-make deploy
+make validate && make init && make deploy
 ```
 
 Please wait for the RDS MySQL database creation to complete, before proceeding to load data.
 
-2. Load sample data. Again, call ```make init``` again to init parameters, such as the endpoint of the newly-created database.
+2. Load sample data. Again, call ```make init``` to init the database endpoint.
 
 ```
-make init
-make load 
+make init && make load && make test
 ```
 Accept any SSH prompts if its the first time connecting to the bastion host.
 
@@ -73,13 +72,11 @@ Accept any SSH prompts if its the first time connecting to the bastion host.
 
 ### 4. Container Cluster
 
-Deploy Fargate cluster and sample app.
+1. Deploy Fargate cluster and sample app.
 
 ```
 cd ../04-fargate
-make validate
-make init
-make deploy
+make validate && make init && make deploy
 ```
 
 What this creates: 
@@ -89,7 +86,13 @@ What this creates:
 
 >Verify the sample Nginx home page:
 >Get the public load balancer DNS endpoint (see stack output). 
->Open in a browser to view the Nginx sample web page.  
+>Verify in a browser to view the Nginx sample web page.
+
+2. Create the private ECR Container Registry
+
+```
+make create-repo
+```
 
 ### 5. Quotes Application.
 
@@ -97,16 +100,23 @@ Build the fortune application image. Publish to ECR.
 
 1. Start Docker desktop. Build docker image.
 
+2. Start a tunnel to the database, build and run the container locally
+
 ```
-cd ../05-quotes
+cd ../05-fortune
 make clean
 make build
+make db-tunnel
 make run
+# if successful, should print "Hello, Fortune!"
 make stop
 ```
 
-What this does: 
-* 
+3. Push the __"fortune"__ container image to the repo
+
+```
+make push
+```
 
 ### 6. Quotes Application Pipeline.
 

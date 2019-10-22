@@ -12,12 +12,12 @@ AZ_DEPRECATED := $(shell aws ec2 describe-subnets --subnet-ids ${SUBNET_ID} \
 .DEFAULT_GOAL := help
 help:
 	@echo Deploys the bastion host.
-	@echo "make [ validate | deploy ]"
+	@echo "make [ validate | init | deploy ]"
 
 validate: 
 	aws cloudformation validate-template --template-body file://${TEMPLATE_FILE}
 
-deploy: init validate
+deploy: validate
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
       --template-file ./${TEMPLATE_FILE}  \
       --parameter-overrides "VPC=${VPC_ID}" "AZ=${AZ1}" "SubnetId=${PUBLIC_SUBNET1}" \
