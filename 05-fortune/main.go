@@ -20,7 +20,7 @@ func main() {
 	r.HandleFunc("/health", Greeting)
 	http.Handle("/", r)
 	fmt.Println("Starting up on " + port)
-	log.Fatal(http.ListenAndServe(":" + port, nil))
+	log.Fatal(http.ListenAndServe(":" + port, handlers.CORS()(r)))
 	fmt.Println("Exiting.")
 }
 
