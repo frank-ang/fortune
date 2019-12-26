@@ -6,10 +6,8 @@ DOCKER_HUB_REPOSITORY=frankang/golang-quotes
 
 .DEFAULT_GOAL := help
 help:
-	@echo make clean build run stop push
-	@echo go clean
-	@echo make db-tunnel
-	@echo ./fortune
+	@echo Please ensure that the Docker daemon is running.
+	@echo "make [ clean | build | db-tunnel | test | push ]"
 
 build:
 	@# builds docker container

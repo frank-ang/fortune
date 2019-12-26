@@ -19,6 +19,7 @@ deploy: validate
         "PublicSubnet1=$(PUBLIC_SUBNET1)" "PublicSubnet2=$(PUBLIC_SUBNET2)" \
         "PrivateSubnet1=$(PRIVATE_SUBNET1)" "PrivateSubnet2=$(PRIVATE_SUBNET2)" \
         "PublicSecurityGroupId=$(DMZ_SECURITY_GROUP)" "PrivateSecurityGroupId=$(APP_SECURITY_GROUP)" \
+        "DbEndpointParameterName=$(DB_ENDPOINT_PARAMETER_NAME)" "DbSecretName=$(DB_SECRET_NAME)" \
         "ImageUrl=${CONTAINER_IMAGE_URL}" \
       --stack-name ${CONTAINER_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
