@@ -77,6 +77,7 @@ Accept any SSH prompts if its the first time connecting to the bastion host.
 ```
 cd ../04-fargate
 make validate && make init && make deploy
+
 ```
 
 What this creates: 
@@ -117,6 +118,7 @@ make stop
 ```
 make push
 ```
+<<<<<<< HEAD
 
 4. Update the cloudformation template with the updated container image.
 
@@ -164,6 +166,55 @@ make upload
 Create the pipeline stack with a CodePipeline that triggers the CI/CD process from updates from the GitHub repo.
 
 ```
+=======
+
+4. Update the cloudformation template with the updated container image.
+
+```
+cd ../04-fargate
+make init
+make deploy
+
+```
+
+When deployment completes, the load balancer default fortune message appears.
+
+```
+$ curl <API_ENDPOINT>
+```
+
+You should see a successful quote in the JSON response. E.g.
+```
+{
+    "Id": 57008,
+    "Quote": "Too many problem-solving sessions become battlegrounds where decisions are made based on power rather than intelligence.",
+    "Author": "Margaret J. Wheatley",
+    "Genre": "power"
+}
+```
+
+> **Troubleshooting**: If you see a response like this:
+```Hello, Fortune!
+```
+Thats the default response when the fortune container is unable to connect to the database. Check the logs and Parameter Store settings.
+
+### 6. Edge 
+
+Deliver the service to users via edge services, via the Cloudfront CDN, a static  
+
+```
+cd ../06-edge
+make validate
+make deploy
+make upload
+```
+
+### 7. Application Pipeline.
+
+Create the pipeline stack with a CodePipeline that triggers the CI/CD process from updates from the GitHub repo.
+
+```
+>>>>>>> dev-cicd
 cd ../07-pipeline
 make verify
 make deploy
