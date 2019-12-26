@@ -12,6 +12,7 @@ DB_STACK_NAME=${PROJECT_TAG}-database
 CONTAINER_STACK_NAME=${PROJECT_TAG}-container
 CONTAINER_NAME=${PROJECT_TAG}
 PIPELINE_STACK_NAME=${PROJECT_TAG}-pipeline
+AUTH_STACK_NAME=${PROJECT_TAG}-auth
 ECR_REPOSITORY_NAME=${PROJECT_TAG}-repo
 PROPERTIES_FILE=../config/properties.mk.gitignore
 DB_ENDPOINT_PARAMETER_NAME="/${PROJECT_TAG}/alpha/database/endpoint"
@@ -19,6 +20,7 @@ DB_SECRET_NAME="/${PROJECT_TAG}/alpha/database/secret"
 EDGE_STACK_NAME=${PROJECT_TAG}-edge
 
 init:
+	@# TODO: REFACTOR this function into a bash script.
 	@# Set updated stack parameters into properties file. 
 	@# Variables from Non-existent stacks should be set as blank
 	@# the generated file can be included from Makefile, or sourced in a Bash shell.
@@ -59,15 +61,23 @@ init:
 	@echo "export COMMIT_HASH="`git log -1 --pretty=format:'%H' | cut -c 1-7` >> $(PROPERTIES_FILE)
 	@echo "export CONTAINER_IMAGE_URL="`if [ -n "$(ECR_REPOSITORY_URI)" ] && [ -n "$(COMMIT_HASH)" ]; \
 				then echo $(ECR_REPOSITORY_URI):$(COMMIT_HASH); else echo nginx; fi` >> $(PROPERTIES_FILE)
-
+	@echo "export USER_POOL_ID="`aws cloudformation describe-stacks --stack-name $(AUTH_STACK_NAME) \
+			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "UserPoolId") | .OutputValue'` >> $(PROPERTIES_FILE)
+	@echo "export APP_CLIENT_ID="`aws cloudformation describe-stacks --stack-name $(AUTH_STACK_NAME) \
+			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "UserPoolClientId") | .OutputValue'` >> $(PROPERTIES_FILE)
+	@echo "export IDENTITY_POOL_ID="`aws cloudformation describe-stacks --stack-name $(AUTH_STACK_NAME) \
+			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "IdentityPoolId") | .OutputValue'` >> $(PROPERTIES_FILE)
 	@cat $(PROPERTIES_FILE)
+
+init-new:
+	../config/configure.sh $(PROPERTIES_FILE)
 
 dump:
 	@echo Parameters:
 	@cat $(PROPERTIES_FILE)
 
 config-db-secret:
-	$(eval DB_PASSWORD  = $(shell aws secretsmanager get-secret-value --secret-id ${DB_SECRET_NAME} \
+	$(eval DB_PASSWORD = $(shell aws secretsmanager get-secret-value --secret-id ${DB_SECRET_NAME} \
 					| jq -r '.SecretString' | jq -r '.password'))
 
 getcommit:
