@@ -2,15 +2,14 @@
 -include ../config/properties.mk ../config/properties.mk.gitignore
 
 # EDIT ME
-EMAIL=frankang+changeme@amazon.com
 USERNAME=user01
-TEMP_PASSWORD=changeme123.
+EMAIL=frankang+user01@amazon.com
+# TODO autogenerate random password.
 PASSWORD=supersecret123.
-
 .DEFAULT_GOAL := help
 
 help:
-	@echo "make [ validate | deploy ]"
+	@echo "make [ validate | deploy | create-test-user ]"
 
 validate:
 	aws cloudformation validate-template --template-body file://cognito.yaml
@@ -21,20 +20,31 @@ deploy:
       --stack-name ${AUTH_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
 
-tmp-init:
-	@echo "export USER_POOL_ID="`aws cloudformation describe-stacks --stack-name $(AUTH_STACK_NAME) \
-			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "UserPoolId") | .OutputValue'`
-	@echo "export APP_CLIENT_ID="`aws cloudformation describe-stacks --stack-name $(AUTH_STACK_NAME) \
-			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "UserPoolClientId") | .OutputValue'`
-	@echo "export IDENTITY_POOL_ID="`aws cloudformation describe-stacks --stack-name $(AUTH_STACK_NAME) \
-			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "IdentityPoolId") | .OutputValue'`
+create-test-user: _create-test-user _confirm-test-user _get-test-user
+	@echo "Test user ready for use: $(USERNAME)"
+	# TODO use randomized creds and set into param store.
 
-create-test-user: tmp-init
-	@echo "creating test user $(USERNAME)"
-	aws cognito-idp admin-create-user admin-create-user --user-pool-id $(USER_POOL_ID) \
-    	--username $(USERNAME) --user-attributes "Name=name,Value=$(USERNAME)" "Name=email_verified,Value=True" \
-		--temporary-password "$(TEMP_PASSWORD)" \
-    @sleep 5
-#@echo "created user" TODO fixme!
+_create-test-user:
+	@echo "Creating test user $(USERNAME) ..."
+	aws cognito-idp sign-up \
+		--client-id $(APP_CLIENT_ID) \
+		--username $(USERNAME) \
+		--password $(PASSWORD) \
+		--user-attributes "Name=name,Value=$(USERNAME)" "Name=email,Value=$(EMAIL)"
+	@sleep 1
+
+_confirm-test-user:
+	@echo "Confirming test user $(USERNAME) ..."
+	aws cognito-idp admin-confirm-sign-up \
+		--user-pool-id $(USER_POOL_ID) \
+		--username $(USERNAME)
+	@sleep 1
+
+_get-test-user:
+	@echo "Details of test user $(USERNAME) ..."
+	aws cognito-idp admin-get-user --user-pool-id $(USER_POOL_ID) --username $(USERNAME)
+
+delete-test-user:
+	aws cognito-idp admin-delete-user --user-pool-id $(USER_POOL_ID) --username $(USERNAME) 
 
 

@@ -1,25 +1,7 @@
 # shared Makefile parameters and functions for include
+include ../config/config.mk
 
-# Edit me.
-PROJECT_TAG=fortune
-KEY_PAIR=macbook2018
-EDGE_BUCKET_NAME=sandbox00-${PROJECT_TAG}
-
-# Optionally, edit if required
-VPC_STACK_NAME=${PROJECT_TAG}-vpc
-BASTION_STACK_NAME=${PROJECT_TAG}-bastion
-DB_STACK_NAME=${PROJECT_TAG}-database
-CONTAINER_STACK_NAME=${PROJECT_TAG}-container
-CONTAINER_NAME=${PROJECT_TAG}
-PIPELINE_STACK_NAME=${PROJECT_TAG}-pipeline
-AUTH_STACK_NAME=${PROJECT_TAG}-auth
-ECR_REPOSITORY_NAME=${PROJECT_TAG}-repo
-PROPERTIES_FILE=../config/properties.mk.gitignore
-DB_ENDPOINT_PARAMETER_NAME="/${PROJECT_TAG}/alpha/database/endpoint"
-DB_SECRET_NAME="/${PROJECT_TAG}/alpha/database/secret"
-EDGE_STACK_NAME=${PROJECT_TAG}-edge
-
-init:
+init-deprecated:
 	@# TODO: REFACTOR this function into a bash script.
 	@# Set updated stack parameters into properties file. 
 	@# Variables from Non-existent stacks should be set as blank
@@ -69,8 +51,8 @@ init:
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "IdentityPoolId") | .OutputValue'` >> $(PROPERTIES_FILE)
 	@cat $(PROPERTIES_FILE)
 
-init-new:
-	../config/configure.sh $(PROPERTIES_FILE)
+init:
+	../config/configure.sh
 
 dump:
 	@echo Parameters:
