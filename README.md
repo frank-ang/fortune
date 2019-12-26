@@ -1,12 +1,8 @@
-# Yet Another Demo App ("YADA")
+# Fortune 
 
-> TODO rename project to "fortune"
+Aka: Yet Another Demo App ("YADA?")
 
-The real purpose is to illustrate and communicate DevOps implementations of Infrastructure as Code, CI/CD.
-
-Setup basic scaffolding. 
-
-** Work in progress. **
+Purpose: illustrate and communicate DevOps practices through a very simple app that does nothing than reply with quotation.
 
 
 
@@ -18,9 +14,13 @@ Setup basic scaffolding.
 * Install ```jq```, ```aws cli```, ```make```.
 * Configure ```properties.mk``` with your desired parameters.
 
+### 0. Configuration parameters
+
+Update [config/properties.mk](config/properties.mk) with desired parameters.
+
 ### 1. VPC Network
 
-Deploy Cloudformation stack to create a VPC (Virtual Private Cloud), that has:
+Deploy Cloudformation stack to create a VPC (Virtual Private Cloud). Contains:
 * 2 public Subnets, 
 * 2 private Subnets, 
 * 1 NAT Gateway, 
@@ -35,30 +35,29 @@ make validate && make deploy
 
 Create 1 Bastion EC2 host into a public subnet, Bastion security group. Amazon Linux configured with SSM and CloudWatch agent.
 
+```make init``` is required to initialize configuration parameters.
+
 ```
 cd ../02-bastion
-make validate && make deploy
+make validate && make init && make deploy
 ```
 
 ### 3. RDS Database 
 
 1. Create an RDS Aurora MySQL serverless cluster inside a private subnet. 
-```make init``` is required to initialize confiugration parameters.
+```make init``` is required (again) to initialize configuration parameters.
 
 ```
 cd ../03-database
-make validate 
-make init
-make deploy
+make validate && make init && make deploy
 ```
 
 Please wait for the RDS MySQL database creation to complete, before proceeding to load data.
 
-2. Load sample data. Again, call ```make init``` again to init parameters, such as the endpoint of the newly-created database.
+2. Load sample data. Again, call ```make init``` to init the database endpoint.
 
 ```
-make init
-make load 
+make init && make load && make test
 ```
 Accept any SSH prompts if its the first time connecting to the bastion host.
 
@@ -73,13 +72,12 @@ Accept any SSH prompts if its the first time connecting to the bastion host.
 
 ### 4. Container Cluster
 
-Deploy Fargate cluster and sample app.
+1. Deploy Fargate cluster and sample app.
 
 ```
 cd ../04-fargate
-make validate
-make init
-make deploy
+make validate && make init && make deploy
+
 ```
 
 What this creates: 
@@ -89,7 +87,13 @@ What this creates:
 
 >Verify the sample Nginx home page:
 >Get the public load balancer DNS endpoint (see stack output). 
->Open in a browser to view the Nginx sample web page.  
+>Verify in a browser to view the Nginx default welcome web page.
+
+2. Create the private ECR Container Registry
+
+```
+make create-repo
+```
 
 ### 5. Quotes Application.
 
@@ -97,28 +101,87 @@ Build the fortune application image. Publish to ECR.
 
 1. Start Docker desktop. Build docker image.
 
+2. Start a tunnel to the database, build and run the container locally
+
 ```
-cd ../05-quotes
+cd ../05-fortune
 make clean
 make build
+make db-tunnel
 make run
+# if successful, should print "Hello, Fortune!"
 make stop
 ```
 
-What this does: 
-* 
-
-### 6. Quotes Application Pipeline.
+3. Push the __"fortune"__ container image to the repo
 
 ```
-cd ../06-pipeline
+make push
+```
+
+4. Update the cloudformation template with the updated container image.
+
+```
+cd ../04-fargate
+make init
+make deploy
+
+```
+
+When deployment completes, the load balancer default fortune message appears.
+
+```
+$ curl <API_ENDPOINT>
+```
+
+You should see a successful quote in the JSON response. E.g.
+```
+{
+    "Id": 57008,
+    "Quote": "Too many problem-solving sessions become battlegrounds where decisions are made based on power rather than intelligence.",
+    "Author": "Margaret J. Wheatley",
+    "Genre": "power"
+}
+```
+
+> **Troubleshooting**: If you see a response like this:
+```Hello, Fortune!
+```
+Thats the default response when the fortune container is unable to connect to the database. Check the logs and Parameter Store settings.
+
+### 6. Edge 
+
+Deliver the service to users via edge services, via the Cloudfront CDN, a static  
+
+```
+cd ../06-edge
+make validate
+make deploy
+make upload
+```
+
+### 7. Application Pipeline.
+
+Create the pipeline stack with a CodePipeline that triggers the CI/CD process from updates from the GitHub repo.
+
+```
+cd ../07-pipeline
 make verify
 make deploy
 ```
 
-Creates:
-* standalone ECR repository
-* CodePipeline stack
+#### Post-deploy steps
+
+After the stack deployment completes, authorize the pipeline to connect to your repository, i.e. your clone of this sample repository.
+
+* Navigate to the CodeDeploy pipeline. Notice the `Source` step has failed, lets fix it.
+* On the Pipeline, click 'Edit'
+* On the Stage 'Edit:Source', click 'Edit stage'
+* On the Action 'GitHub', click the 'edit' pencil icon
+* Click 'Connect to GitHub' to Grant AWS CodePipeline access to your GitHub repository.
+* Select your Repository and Branch.
+* Click 'Done', click 'Save' pipeline changes.
+
 
 ## TODOs
 
