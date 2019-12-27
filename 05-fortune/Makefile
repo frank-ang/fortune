@@ -1,5 +1,5 @@
 # Fortune Application 
--include ../config/properties.mk ../config/properties.mk.gitignore
+-include ../config/properties.mk
 # EDIT ME.
 LOCAL_REPOSITORY=golang-fortune
 DOCKER_HUB_REPOSITORY=frankang/golang-quotes

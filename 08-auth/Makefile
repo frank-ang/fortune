@@ -1,5 +1,5 @@
 # Pipeline 
--include ../config/properties.mk ../config/properties.mk.gitignore
+-include ../config/properties.mk
 
 # EDIT ME
 USERNAME=user01
@@ -9,7 +9,7 @@ PASSWORD=supersecret123.
 .DEFAULT_GOAL := help
 
 help:
-	@echo "make [ validate | deploy | create-test-user ]"
+	@echo "make [ validate | deploy | create-test-user | test-auth | delete-test-user ]"
 
 validate:
 	aws cloudformation validate-template --template-body file://cognito.yaml
@@ -44,7 +44,13 @@ _get-test-user:
 	@echo "Details of test user $(USERNAME) ..."
 	aws cognito-idp admin-get-user --user-pool-id $(USER_POOL_ID) --username $(USERNAME)
 
+test-auth:
+	@# Authenticate as the demo user and retrieve the OAUTH ID Token, which is a JWT Bearer token. 
+	aws cognito-idp initiate-auth --client-id $(APP_CLIENT_ID) \
+		--auth-flow USER_PASSWORD_AUTH --auth-parameters USERNAME=$(USERNAME),PASSWORD=$(PASSWORD) \
+		| jq -r ".AuthenticationResult.IdToken"
+	@#curl -X GET -H "content-type: application/json" -H "Authorization: $(OAUTH_ID_TOKEN)" $(API_ENDPOINT)/fortune
+
 delete-test-user:
 	aws cognito-idp admin-delete-user --user-pool-id $(USER_POOL_ID) --username $(USERNAME) 
-
 

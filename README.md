@@ -178,6 +178,17 @@ make verify
 make deploy
 ```
 
+### 8. Authentication
+
+Deploy Cognito stack
+
+```
+cd ../08-auth
+make verify
+make deploy
+```
+
+
 #### Post-deploy steps
 
 After the stack deployment completes, authorize the pipeline to connect to your repository, i.e. your clone of this sample repository.

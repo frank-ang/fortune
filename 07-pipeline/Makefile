@@ -1,5 +1,6 @@
-# Pipeline 
--include ../config/properties.mk ../config/properties.mk.gitignore
+#!make
+# Deploy CodePipeline 
+-include ../config/properties.mk
 
 # EDIT ME
 GitHubRepo=DeployPlayground
@@ -19,9 +20,7 @@ validate:
 	aws cloudformation validate-template --template-body file://pipeline.yaml
 
 deploy: validate
-	# prompt for github token.
-#@echo $(eval GitHubToken ?= $(shell bash -c 'read -s -p "GitHubToken: " GitHubToken; echo $$GitHubToken'))
-	# create the pipeline
+	@echo "Create CodePipeline stack..."
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
       --template-file ./pipeline.yaml \
       --parameter-overrides \
@@ -30,3 +29,4 @@ deploy: validate
 		"Cluster=$(Cluster)" "ServiceName=$(ServiceName)" "Repository=${ECR_REPOSITORY_NAME}"\
       --stack-name ${PIPELINE_STACK_NAME} \
       --tags "project=${PROJECT_TAG}"
+	@echo "CodePipeline stack created. Please post-configure the pipeline to your source repository."

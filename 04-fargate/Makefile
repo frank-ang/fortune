@@ -1,16 +1,17 @@
-# Makefile for Fargate container cluster
--include ../config/properties.mk ../config/properties.mk.gitignore
+#!make
+# Fargate cluster and service
+-include ../config/properties.mk ../config/config.env.gitignore
 .DEFAULT_GOAL := help
 
 help:
-	@echo "creates the Fargate cluster resource"
+	@echo "Creates the Fargate cluster resource"
 	@echo "make [ validate | init | deploy | create-repo | clean-repo ]"
 
 validate: 
 	aws cloudformation validate-template --template-body file://fargate.yaml
 
 deploy: validate
-	@echo deploys the fargate cluster service with an nginx container
+	@echo Deploy the fargate cluster service
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
       --template-file ./fargate.yaml \
       --parameter-overrides \
@@ -25,7 +26,7 @@ deploy: validate
       --tags "project=${PROJECT_TAG}"
 
 create-repo:
-	@echo deploy an empty ECR repository, we decouple the repo outside of CloudFormation.
+	@echo Deploy an empty ECR repository
 	aws ecr create-repository --repository-name "${ECR_REPOSITORY_NAME}" --tags "Key=project,Value=${PROJECT_TAG}"
 
 clean-repo:

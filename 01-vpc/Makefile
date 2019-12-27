@@ -1,4 +1,5 @@
-# VPC Creation Makefile
+#!make
+# VPC Creation
 -include ../config/properties.mk
 .DEFAULT_GOAL := help
 help:

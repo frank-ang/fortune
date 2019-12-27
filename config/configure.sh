@@ -1,7 +1,7 @@
 #!/bin/bash
 # sets a bunch of parameters that reflects the current deployed configuration state.
-source ../config/config.mk
-PROPERTIES_FILE=../config/properties.mk.gitignore
+source ../config/config.env
+PROPERTIES_FILE=../config/config.env.gitignore
 echo "Initializing configuration into property file: $PROPERTIES_FILE"
 echo "please wait ..."
 echo "# Dynamically generated properties file." > $PROPERTIES_FILE

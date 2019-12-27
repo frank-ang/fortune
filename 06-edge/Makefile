@@ -1,5 +1,5 @@
 # quotes application 
--include ../config/properties.mk ../config/properties.mk.gitignore
+-include ../config/properties.mk
 
 .DEFAULT_GOAL := help
 help:

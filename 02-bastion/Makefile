@@ -1,6 +1,6 @@
 #!make
 # Deploy the Bastion Host
--include ../config/properties.mk ../config/properties.mk.gitignore
+-include ../config/properties.mk
 TEMPLATE_FILE := bastion_host.yaml
 VPC_ID_DEPRECATED := $(shell aws cloudformation describe-stacks --stack-name $(VPC_STACK_NAME) \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "VPC") | .OutputValue')
