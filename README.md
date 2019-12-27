@@ -156,6 +156,7 @@ Deliver the service to users via edge services, via the Cloudfront CDN, a static
 
 ```
 cd ../06-edge
+make init
 make validate
 make deploy
 make upload
@@ -170,7 +171,7 @@ Open a browser to the Cloudfront URL. It loads and renders the fortune quote.
 
 ### 7. Application Pipeline.
 
-Create the pipeline stack with a CodePipeline that triggers the CI/CD process from updates from the GitHub repo.
+1. Create the CodePipeline stack. 
 
 ```
 cd ../07-pipeline
@@ -178,18 +179,7 @@ make verify
 make deploy
 ```
 
-### 8. Authentication
-
-Deploy Cognito stack
-
-```
-cd ../08-auth
-make verify
-make deploy
-```
-
-
-#### Post-deploy steps
+2. Authorize the pipeline to trigger from your source repository.
 
 After the stack deployment completes, authorize the pipeline to connect to your repository, i.e. your clone of this sample repository.
 
@@ -200,6 +190,51 @@ After the stack deployment completes, authorize the pipeline to connect to your 
 * Click 'Connect to GitHub' to Grant AWS CodePipeline access to your GitHub repository.
 * Select your Repository and Branch.
 * Click 'Done', click 'Save' pipeline changes.
+
+
+### 8. Authentication
+
+1. Deploy Cognito stack. Create a test user.
+
+```
+cd ../08-auth
+make verify
+make deploy
+make create-test-user
+make test-auth
+```
+
+2. Configure Cognito User Pool domain.
+
+```
+make init
+make create-user-pool-domain
+```
+
+> Or, you can configure this manually on the AWS Console
+> 
+> * In the AWS Console, select the UserPool. 
+> * App Integration -> Domain Name
+> * Enter a unique domain prefix e.g. `[alias]-fortune`
+> * Save. 
+
+3. Configure App Client Settings
+
+Configure the app client to use the built-in webpages for signing up and signing in users:
+
+```
+make config-app-client
+```
+
+> OR you can configure it manually using the AWS Console,
+>
+> * In the AWS Console, Cognito UserPool -> App integration -> App client settings -> App client
+> * Enabled Identity Providers: "Select all"
+> * Callback URL(s): Enter your endpoint e.g. "https://[your-cloudfront-edge-domain-name]/"
+> * Sign out URL(s): optional
+> * OAuth 2.0 -> Allowed OAuth Flows: "Authorization code grant"
+> * OAuth 2.0 -> Allowed OAuth Scopes: "openid"
+> * click "Save changes"
 
 
 ## TODOs

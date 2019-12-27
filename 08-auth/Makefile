@@ -1,4 +1,5 @@
-# Pipeline 
+#!make
+# Authentication stack with Cognito UserPool 
 -include ../config/properties.mk
 
 # EDIT ME
@@ -9,7 +10,8 @@ PASSWORD=supersecret123.
 .DEFAULT_GOAL := help
 
 help:
-	@echo "make [ validate | deploy | create-test-user | test-auth | delete-test-user ]"
+	@echo "make [ validate | deploy | create-test-user | test-auth | delete-test-user "\
+	@echo "       create-user-pool-domain | delete-user-pool-domain | config-app-client ]"
 
 validate:
 	aws cloudformation validate-template --template-body file://cognito.yaml
@@ -42,7 +44,9 @@ _confirm-test-user:
 
 _get-test-user:
 	@echo "Details of test user $(USERNAME) ..."
-	aws cognito-idp admin-get-user --user-pool-id $(USER_POOL_ID) --username $(USERNAME)
+	aws cognito-idp admin-get-user \
+		--user-pool-id $(USER_POOL_ID) \
+		--username $(USERNAME)
 
 test-auth:
 	@# Authenticate as the demo user and retrieve the OAUTH ID Token, which is a JWT Bearer token. 
@@ -52,5 +56,27 @@ test-auth:
 	@#curl -X GET -H "content-type: application/json" -H "Authorization: $(OAUTH_ID_TOKEN)" $(API_ENDPOINT)/fortune
 
 delete-test-user:
-	aws cognito-idp admin-delete-user --user-pool-id $(USER_POOL_ID) --username $(USERNAME) 
+	aws cognito-idp admin-delete-user \
+		--user-pool-id $(USER_POOL_ID) \
+		--username $(USERNAME) 
+
+create-user-pool-domain:
+	aws cognito-idp create-user-pool-domain \
+		--user-pool-id $(USER_POOL_ID) \
+		--domain $(COGNITO_DOMAIN_NAME)
+	@sleep 1
+	aws cognito-idp describe-user-pool-domain \
+		--domain $(COGNITO_DOMAIN_NAME)
+
+delete-user-pool-domain:
+	aws cognito-idp delete-user-pool-domain \
+		--user-pool-id $(USER_POOL_ID) \
+		--domain $(COGNITO_DOMAIN_NAME)
+
+config-app-client:
+	aws cognito-idp update-user-pool-client \
+		--user-pool-id  "$(USER_POOL_ID)" --client-id "$(APP_CLIENT_ID)" \
+		--allowed-o-auth-flows-user-pool-client --allowed-o-auth-flows "code" \
+		--allowed-o-auth-scopes "openid" --callback-urls '["https://$(EDGE_DOMAIN_NAME)/"]' \
+		--supported-identity-providers '["COGNITO"]'
 
