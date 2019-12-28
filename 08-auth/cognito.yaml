@@ -31,10 +31,12 @@ Resources:
     Properties:
       UserPoolId: !Ref FortuneUserPool
       ClientName: !Sub ${AWS::StackName}-client
-      GenerateSecret: false
+      GenerateSecret: true
       ExplicitAuthFlows: 
-        - ADMIN_NO_SRP_AUTH
-        - USER_PASSWORD_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
 
   FortuneIdentityPool:
     Type: "AWS::Cognito::IdentityPool"

@@ -230,11 +230,36 @@ make config-app-client
 >
 > * In the AWS Console, Cognito UserPool -> App integration -> App client settings -> App client
 > * Enabled Identity Providers: "Select all"
-> * Callback URL(s): Enter your endpoint e.g. "https://[your-cloudfront-edge-domain-name]/"
+> * Callback URL(s): Enter comma-separated endpoints e.g. 
+    "https://[your-cloudfront-edge-dns-name]/",
+    "https://[your-API-load-balancer-dns-name]/oauth2/idpresponse"
 > * Sign out URL(s): optional
 > * OAuth 2.0 -> Allowed OAuth Flows: "Authorization code grant"
 > * OAuth 2.0 -> Allowed OAuth Scopes: "openid"
 > * click "Save changes"
+
+Verify the hosted UI, from the AWS Console:
+
+Cognito UserPool -> App integration -> App client settings -> App client -> Hosted UI.
+
+4. Configure SSL on the Load Balancer.
+
+> Caveat: (TODO)
+> 
+> * Tested on: ACM certificate validated against valid Route53 DNS domain.
+> * Not tested: self-signed SSL cert imported into ACM
+
+    * Configure Route53 domain
+    * Generate ACM wildcard certificate
+    * Create Load Balancer HTTPS listener.
+
+5. Configure API Authentication from the Load Balancer
+
+TODO: add description.
+
+6. Configure javascript auth on web page.
+
+TODO: add auth on web page. Should use Amplify? What client-side library to use?
 
 
 ## TODOs

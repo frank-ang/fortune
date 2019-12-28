@@ -10,7 +10,7 @@ PASSWORD=supersecret123.
 .DEFAULT_GOAL := help
 
 help:
-	@echo "make [ validate | deploy | create-test-user | test-auth | delete-test-user "\
+	@echo "make [ validate | deploy | create-test-user | test-auth | delete-test-user "
 	@echo "       create-user-pool-domain | delete-user-pool-domain | config-app-client ]"
 
 validate:
@@ -77,6 +77,7 @@ config-app-client:
 	aws cognito-idp update-user-pool-client \
 		--user-pool-id  "$(USER_POOL_ID)" --client-id "$(APP_CLIENT_ID)" \
 		--allowed-o-auth-flows-user-pool-client --allowed-o-auth-flows "code" \
-		--allowed-o-auth-scopes "openid" --callback-urls '["https://$(EDGE_DOMAIN_NAME)/"]' \
+		--allowed-o-auth-scopes "openid" \
+		--callback-urls '["https://$(EDGE_DOMAIN_NAME)/", "https://$(API_ENDPOINT)/oauth2/idpresponse" ]' \
 		--supported-identity-providers '["COGNITO"]'
 
