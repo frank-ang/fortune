@@ -211,13 +211,6 @@ make init
 make create-user-pool-domain
 ```
 
-> Or, you can configure this manually on the AWS Console
-> 
-> * In the AWS Console, select the UserPool. 
-> * App Integration -> Domain Name
-> * Enter a unique domain prefix e.g. `[alias]-fortune`
-> * Save. 
-
 3. Configure App Client Settings
 
 Configure the app client to use the built-in webpages for signing up and signing in users:
@@ -225,22 +218,12 @@ Configure the app client to use the built-in webpages for signing up and signing
 ```
 make config-app-client
 ```
-
-> OR you can configure it manually using the AWS Console,
->
-> * In the AWS Console, Cognito UserPool -> App integration -> App client settings -> App client
-> * Enabled Identity Providers: "Select all"
-> * Callback URL(s): Enter comma-separated endpoints e.g. 
-    "https://[your-cloudfront-edge-dns-name]/",
-    "https://[your-API-load-balancer-dns-name]/oauth2/idpresponse"
-> * Sign out URL(s): optional
-> * OAuth 2.0 -> Allowed OAuth Flows: "Authorization code grant"
-> * OAuth 2.0 -> Allowed OAuth Scopes: "openid"
-> * click "Save changes"
-
 Verify the hosted UI, from the AWS Console:
 
 Cognito UserPool -> App integration -> App client settings -> App client -> Hosted UI.
+
+https://sandbox00-fortune.auth.ap-southeast-1.amazoncognito.com/login?client_id=6cfa6ajrrpla0nfkn6g8ijeb4h&response_type=token&scope=openid&redirect_uri=https://d1nhf019mossk5.cloudfront.net/
+
 
 4. Configure SSL on the Load Balancer.
 

@@ -76,8 +76,15 @@ delete-user-pool-domain:
 config-app-client:
 	aws cognito-idp update-user-pool-client \
 		--user-pool-id  "$(USER_POOL_ID)" --client-id "$(APP_CLIENT_ID)" \
-		--allowed-o-auth-flows-user-pool-client --allowed-o-auth-flows "code" \
+		--allowed-o-auth-flows-user-pool-client \
+		--allowed-o-auth-flows "code" "implicit" \
 		--allowed-o-auth-scopes "openid" \
-		--callback-urls '["https://$(EDGE_DOMAIN_NAME)/", "https://$(API_ENDPOINT)/oauth2/idpresponse" ]' \
-		--supported-identity-providers '["COGNITO"]'
+		--callback-urls '["https://$(EDGE_DOMAIN_NAME)/", \
+			"https://$(API_ENDPOINT)/oauth2/idpresponse", \
+			"http://localhost:8080" ]' \
+		--logout-urls '[ "http://localhost:8080" ]' \
+		--explicit-auth-flows ALLOW_ADMIN_USER_PASSWORD_AUTH ALLOW_USER_PASSWORD_AUTH ALLOW_REFRESH_TOKEN_AUTH \
+		--prevent-user-existence-errors "ENABLED" \
+		--supported-identity-providers "COGNITO"
+
 
