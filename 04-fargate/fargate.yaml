@@ -79,7 +79,8 @@ Resources:
   # and ensures a desired number of copies are running. 
   Service:
     Type: AWS::ECS::Service
-    DependsOn: LoadBalancerRule
+    DependsOn:
+      - LoadBalancerListener
     Properties:
       ServiceName: !Ref 'ServiceName'
       Cluster: !Ref ECSCluster
@@ -187,72 +188,55 @@ Resources:
               Resource: '*'
 
   # Load Balancer for Fargate service
-  PublicLoadBalancer:
+  LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Scheme: internet-facing
-      LoadBalancerAttributes:
-      - Key: idle_timeout.timeout_seconds
-        Value: '60'
+      Type: network
+      Scheme: internal
       Subnets:
-        # The load balancer is placed into the public subnets, so that traffic
-        # from the internet can reach the load balancer directly via the internet gateway
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
-      SecurityGroups: [!Ref 'PublicSecurityGroupId']
+        # The load balancer is placed into the private subnets, for access via PrivateLink
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
 
-  PublicLoadBalancerListener:
+  LoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     DependsOn:
-      - PublicLoadBalancer
+      - LoadBalancer
+      - TargetGroup
     Properties:
-      DefaultActions:
-        - TargetGroupArn: !Ref 'TargetGroup'
-          Type: 'forward'
-      LoadBalancerArn: !Ref 'PublicLoadBalancer'
       Port: 80
-      Protocol: HTTP
+      Protocol: TCP
+      DefaultActions:
+        - Type: 'forward'
+          TargetGroupArn: !Ref 'TargetGroup'
+      LoadBalancerArn: !Ref 'LoadBalancer'
 
   # A Load Balancer target group. 
   # This is used for keeping track of backend tasks for traffic distribution.
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 15
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 3
-      HealthyThresholdCount: 2
-      TargetType: ip
       Name: !Ref 'ServiceName'
-      Port: !Ref 'ContainerPort'
-      Protocol: HTTP
-      UnhealthyThresholdCount: 2
       VpcId: !Ref VpcId
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: 3
+      Protocol: TCP
+      Port: !Ref 'ContainerPort'
+      TargetType: ip
 
-  # Rule on the load balancer for routing traffic to the target group
-  LoadBalancerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      Actions:
-        - TargetGroupArn: !Ref 'TargetGroup'
-          Type: 'forward'
-      Conditions:
-        - Field: path-pattern
-          Values: [!Ref 'Path']
-      ListenerArn: !Ref PublicLoadBalancerListener
-      Priority: !Ref 'Priority'
+  VPCEndpointService:
+    Type: AWS::EC2::VPCEndpointService
+    DependsOn: LoadBalancer
+    Properties: 
+      NetworkLoadBalancerArns: 
+        - !Ref LoadBalancer
 
 Outputs:
-  PublicLoadBalancerDNSName:
-    Value: !GetAtt PublicLoadBalancer.DNSName
+  LoadBalancerDNSName:
+    Value: !GetAtt LoadBalancer.DNSName
   ECSClusterName:
     Value: !Ref ECSCluster
   ServiceName:
     Value: !GetAtt Service.Name
   TaskDefinitionArn:
     Value: !Ref TaskDefinition
-
+  VPCEndpointService:
+    Value: !Ref VPCEndpointService

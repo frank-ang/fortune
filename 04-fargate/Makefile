@@ -1,6 +1,7 @@
 #!make
 # Fargate cluster and service
--include ../config/properties.mk ../config/config.env.gitignore
+-include ../config/properties.mk
+
 .DEFAULT_GOAL := help
 
 help:
@@ -29,5 +30,11 @@ create-repo:
 	@echo Deploy an empty ECR repository
 	aws ecr create-repository --repository-name "${ECR_REPOSITORY_NAME}" --tags "Key=project,Value=${PROJECT_TAG}"
 
-clean-repo:
+delete-repo:
 	aws ecr delete-repository --repository-name "${ECR_REPOSITORY_NAME}"
+
+delete:
+	aws cloudformation delete-stack --stack-name "$(CONTAINER_STACK_NAME)"
+	aws cloudformation wait stack-delete-complete --stack-name "$(CONTAINER_STACK_NAME)"
+
+
