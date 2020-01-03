@@ -272,6 +272,24 @@ Resources:
       IpProtocol: -1
       SourceSecurityGroupId: !Ref AppSecurityGroup
 
+  AppSecurityGroupIngressFromPrivateSubnet1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      CidrIp: !Ref PrivateSubnet1CIDR
+      FromPort: 80
+      ToPort: 80
+
+  AppSecurityGroupIngressFromPrivateSubnet2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      CidrIp: !Ref PrivateSubnet2CIDR
+      FromPort: 80
+      ToPort: 80
+
   DbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

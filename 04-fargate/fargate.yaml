@@ -197,6 +197,9 @@ Resources:
         # The load balancer is placed into the private subnets, for access via PrivateLink
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: true
 
   LoadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener

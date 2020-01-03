@@ -6,11 +6,13 @@
 
 help:
 	@echo "Creates the Fargate cluster resource"
-	@echo "make [ validate | init | deploy | create-repo | clean-repo ]"
+	@echo "make [ validate | init | deploy | create-repo | "
+	@echo "       delete | delete-repo ]"
 
 validate: 
 	aws cloudformation validate-template --template-body file://fargate.yaml
 
+# TODO redeploy update is broken. FIX: set CONTAINER_IMAGE_URL correctly if nginx.
 deploy: validate
 	@echo Deploy the fargate cluster service
 	aws cloudformation deploy --capabilities CAPABILITY_IAM \
@@ -31,10 +33,12 @@ create-repo:
 	aws ecr create-repository --repository-name "${ECR_REPOSITORY_NAME}" --tags "Key=project,Value=${PROJECT_TAG}"
 
 delete-repo:
+	@echo "Remember to first delete images (manually on AWS Console)."
+	# TODO aws ecr batch-delete-image
 	aws ecr delete-repository --repository-name "${ECR_REPOSITORY_NAME}"
 
 delete:
+	# TODO delete task definitions? 
 	aws cloudformation delete-stack --stack-name "$(CONTAINER_STACK_NAME)"
 	aws cloudformation wait stack-delete-complete --stack-name "$(CONTAINER_STACK_NAME)"
-
 
