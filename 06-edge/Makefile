@@ -23,7 +23,7 @@ dist:
 	rm -rf ./dist/*
 	cp -r ./src/ ./dist/
 	@echo "Editing endpoint URL into web page..."
-	sed -e "s/\(var fortuneEndpoint=\).*/\1'$(API_ENDPOINT)\/fortune'/g" -i tmp ./dist/index.html
+	sed -e "s|\(var fortuneEndpoint=\).*|\1'$(API_ENDPOINT_TEST)'|g" -i tmp ./dist/index.html
 	rm ./dist/index.htmltmp
 
 upload: dist

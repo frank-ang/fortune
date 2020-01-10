@@ -225,13 +225,6 @@ Resources:
       Port: !Ref 'ContainerPort'
       TargetType: ip
 
-  VPCEndpointService:
-    Type: AWS::EC2::VPCEndpointService
-    DependsOn: LoadBalancer
-    Properties: 
-      NetworkLoadBalancerArns: 
-        - !Ref LoadBalancer
-
 Outputs:
   LoadBalancerDNSName:
     Value: !GetAtt LoadBalancer.DNSName
@@ -241,5 +234,3 @@ Outputs:
     Value: !GetAtt Service.Name
   TaskDefinitionArn:
     Value: !Ref TaskDefinition
-  VPCEndpointService:
-    Value: !Ref VPCEndpointService

@@ -40,7 +40,7 @@ echo "export DB_HOST="`aws ssm get-parameter --name $DB_ENDPOINT_PARAMETER_NAME 
 	| jq -r '.Parameter.Value'` >> $PROPERTIES_FILE
 
 # extract Fargate config
-echo "export API_ENDPOINT="`aws cloudformation describe-stacks --stack-name $CONTAINER_STACK_NAME \
+echo "export NLB_ENDPOINT="`aws cloudformation describe-stacks --stack-name $CONTAINER_STACK_NAME \
 			| jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "LoadBalancerDNSName") | .OutputValue'` >> $PROPERTIES_FILE
 echo "export ECR_REPOSITORY_URI="`aws ecr describe-repositories --repository-names $ECR_REPOSITORY_NAME \
 			| jq -r '.repositories[0].repositoryUri'`  >> $PROPERTIES_FILE
@@ -48,6 +48,10 @@ COMMIT_HASH=`git log -1 --pretty=format:'%H' | cut -c 1-7`
 echo "export COMMIT_HASH=$COMMIT_HASH" >> $PROPERTIES_FILE
 echo "export CONTAINER_IMAGE_URL="`if [ -n "$ECR_REPOSITORY_URI" ] && [ -n "$COMMIT_HASH" ]; \
 			then echo $ECR_REPOSITORY_URI:$COMMIT_HASH; else echo nginx; fi` >> $PROPERTIES_FILE
+
+# TODO: lookup API GW Stack. WARNING: currently HARDCODED!
+API_ENDPOINT="https://wzzsc4otwj.execute-api.ap-southeast-1.amazonaws.com/test/fortune/"
+echo "export API_ENDPOINT_TEST=$API_ENDPOINT" >> $PROPERTIES_FILE
 
 # extract Edge config
 echo "export EDGE_DOMAIN_NAME="`aws cloudformation describe-stacks --stack-name $EDGE_STACK_NAME \
