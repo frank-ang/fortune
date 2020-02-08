@@ -4,20 +4,22 @@ Aka: Yet Another Demo App ("YADA?")
 
 To illustrate and communicate Infrastructure-as-Code and DevOps practices, through a very simple random quote API.
 
-![Fortune Browser Screenshot](06-edge/FortuneScreenshot.png) 
+![Fortune Browser Screenshot](doc/FortuneScreenshot.png) 
 
 
 ## Infrastructure Setup
 
+![Fortune Architecture](doc/fortune.png) 
+
+
 ### Prereqs
 
 * Use a shell environment, such as MacOS, Bash for Windows, or AWS Cloud9.
-* Install ```jq```, ```aws cli```, ```make```.
-* Configure ```properties.mk``` with your desired parameters.
+* Install prerequisites ```jq```, ```aws cli```, ```make```. ```mysql```
 
 ### 0. Configuration parameters
 
-Update [config/properties.mk](config/properties.mk) with desired parameters.
+Update [config/config.env](config/config.env) with desired parameters.
 
 ### 1. VPC Network
 
@@ -25,7 +27,7 @@ Deploy Cloudformation stack to create a VPC (Virtual Private Cloud). Contains:
 * 2 public Subnets, 
 * 2 private Subnets, 
 * 1 NAT Gateway, 
-* 4 Security Groups for Bastion, DMZ, Application, and Database
+* 4 Security Groups, for Bastion, DMZ (DEPRECATED), Application, and Database, (and Canary TODO)
 
 ```
 cd 01-vpc
